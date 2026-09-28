@@ -25,9 +25,15 @@ const readValidatedEnvironment = (
   OTP_HASH_SECRET: config.getOrThrow('OTP_HASH_SECRET', {
     infer: true,
   }),
-  RESEND_API_KEY: config.get('RESEND_API_KEY'),
-  RESEND_FROM_EMAIL: config.get('RESEND_FROM_EMAIL'),
-  RESEND_FROM_NAME: config.get('RESEND_FROM_NAME'),
+  RESEND_API_KEY: config.getOrThrow('RESEND_API_KEY', {
+    infer: true,
+  }),
+  RESEND_FROM_EMAIL: config.getOrThrow('RESEND_FROM_EMAIL', {
+    infer: true,
+  }),
+  RESEND_FROM_NAME: config.getOrThrow('RESEND_FROM_NAME', {
+    infer: true,
+  }),
 });
 
 const appConfigProvider: FactoryProvider = {

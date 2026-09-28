@@ -48,12 +48,7 @@ export const environmentSchema = Joi.object<ValidatedEnvironment>({
   DATABASE_URL: Joi.string().required(),
   OTP_HASH_SECRET: Joi.string().min(32).required(),
 
-  RESEND_API_KEY: Joi.string().optional(),
-  RESEND_FROM_EMAIL: Joi.string()
-    .email()
-    .when('RESEND_API_KEY', { is: Joi.exist(), then: Joi.required() }),
-  RESEND_FROM_NAME: Joi.string().when('RESEND_API_KEY', {
-    is: Joi.exist(),
-    then: Joi.required(),
-  }),
+  RESEND_API_KEY: Joi.string().trim().required(),
+  RESEND_FROM_EMAIL: Joi.string().trim().email().required(),
+  RESEND_FROM_NAME: Joi.string().trim().required(),
 });
