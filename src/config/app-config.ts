@@ -10,6 +10,10 @@ export interface AppConfig {
   readonly environment: NodeEnvironment;
   readonly port: number;
   readonly logLevel: LogLevel;
+  readonly otpHashSecret: string;
+  readonly resendAPIKey: string;
+  readonly resendFromEmail: string;
+  readonly resendFromName: string;
 }
 
 export const createAppConfig = (environment: ValidatedEnvironment): AppConfig =>
@@ -17,4 +21,8 @@ export const createAppConfig = (environment: ValidatedEnvironment): AppConfig =>
     environment: environment.NODE_ENV,
     port: environment.PORT,
     logLevel: environment.LOG_LEVEL,
+    otpHashSecret: environment.OTP_HASH_SECRET,
+    resendAPIKey: environment.RESEND_API_KEY,
+    resendFromEmail: environment.RESEND_FROM_EMAIL,
+    resendFromName: environment.RESEND_FROM_NAME,
   });

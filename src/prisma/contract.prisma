@@ -17,10 +17,14 @@ enum AuthProvider {
   GITHUB
 }
 
+enum EmailVerificationPurpose {
+  REGISTRATION
+}
+
 model User {
   id          Uuid                 @id @default(uuid())
   publicId    Uuid                 @unique @default(uuid())
-  displayName String               @map("display_name")
+  displayName String?               @map("display_name")
   avatarUrl   String?              @map("avatar_url")
   role        UserRole             @default(USER)
   status      UserStatus           @default(PENDING)
@@ -80,4 +84,22 @@ model PasswordCredential {
   authIdentity AuthIdentity @relation(fields:[authIdentityId], references:[id], onDelete:Cascade)
 
   @@map("password_credential")
+}
+
+model EmailVerificationChallenge {
+  id Uuid @id @default(uuid())
+  userId Uuid @map("user_id")
+  purpose EmailVerificationPurpose
+  otpHash String @map("otp_hash")
+  expiresAt Timestamptz(3) @map("expires_at")
+  attemptCount Int @map("attempt_count")
+  maxAttempts Int @map("max_attempts")
+  consumedAt Timestamptz(3)? @map("consumed_at")
+
+  createdAt      temporal.createdAt() @map("created_at")
+  updatedAt      temporal.updatedAt() @map("updated_at")
+
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,purpose])
+  @@map("email_verification_challenges")
 }

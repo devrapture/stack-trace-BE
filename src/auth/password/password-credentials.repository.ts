@@ -12,5 +12,6 @@ export class PasswordIdentityAlreadyExistsError extends Error {
 
 export interface PasswordCredentialsRepository {
   createForUser(userId: string, passwordHash: string): Promise<void>;
+  updateHashForUser(userId: string, passwordHash: string): Promise<void>;
   findHashByUserId(userId: string): Promise<string | null>;
 }

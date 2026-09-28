@@ -1,3 +1,7 @@
+import { HttpStatus } from '@nestjs/common';
+import { AppError } from '../../common/error/app-error.js';
+import { ErrorCode } from '../../common/error/error-codes.js';
+
 export const PASSWORD_POLICY = {
   minLength: 8,
   maxLength: 128,
@@ -7,12 +11,7 @@ export const PASSWORD_POLICY = {
   // requireSymbol: true,
 } as const;
 
-export interface PasswordValidationResult {
-  valid: boolean;
-  errors: string[];
-}
-
-export function validatePassword(password: string): PasswordValidationResult {
+export const validatePassword = (password: string) => {
   const errors: string[] = [];
 
   if (password.length < PASSWORD_POLICY.minLength) {
@@ -38,5 +37,10 @@ export function validatePassword(password: string): PasswordValidationResult {
   //   errors.push('Password must contain at least one symbol.');
   // }
 
-  return { valid: errors.length === 0, errors };
-}
+  if (errors.length > 0)
+    throw new AppError(
+      ErrorCode.PASSWORD_POLICY_VALIDATION,
+      `Password does not meet policy requirements: ${errors.join(', ')}`,
+      HttpStatus.BAD_REQUEST,
+    );
+};

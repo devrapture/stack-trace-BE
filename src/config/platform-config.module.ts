@@ -22,6 +22,12 @@ const readValidatedEnvironment = (
   DATABASE_URL: config.getOrThrow('DATABASE_URL', {
     infer: true,
   }),
+  OTP_HASH_SECRET: config.getOrThrow('OTP_HASH_SECRET', {
+    infer: true,
+  }),
+  RESEND_API_KEY: config.get('RESEND_API_KEY'),
+  RESEND_FROM_EMAIL: config.get('RESEND_FROM_EMAIL'),
+  RESEND_FROM_NAME: config.get('RESEND_FROM_NAME'),
 });
 
 const appConfigProvider: FactoryProvider = {
