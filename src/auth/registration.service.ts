@@ -1,6 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { AppError } from '../common/error/app-error.js';
-import { ErrorCode } from '../common/error/error-codes.js';
+import { Inject, Injectable } from '@nestjs/common';
 import { EMAIL_PROVIDER, type EmailProvider } from '../email/email-provider.js';
 import { accountEmail } from '../email/templates/account-email.js';
 import { normalizeEmail } from '../users/normalize-email.js';
@@ -51,13 +49,17 @@ export class RegistrationService {
   async register(dto: RegisterDto): Promise<RegisterResponseDto> {
     validatePassword(dto.password);
     const { displayEmail, normalizedEmail } = normalizeEmail(dto.email);
+
     const existing =
       await this.userService.getUserByNormalizedEmail(normalizedEmail);
+
     if (existing) {
       await this.handleExistingEmail(existing, dto.password);
       return GENERIC_RESPONSE;
     }
+
     const passwordHash = await this.passwordHasher.hash(dto.password);
+
     try {
       const user = await this.userService.createWithPrimaryEmail({
         email: displayEmail,
@@ -121,29 +123,15 @@ export class RegistrationService {
     userId: string,
     toEmail: string,
   ): Promise<void> {
-    const lastIssuedAt =
-      await this.emailVerificationRepository.mostRecentIssuedAt(
-        userId,
-        'REGISTRATION',
-      );
-    if (lastIssuedAt) {
-      const elaspedMs = Date.now() - lastIssuedAt.getTime();
-      if (elaspedMs < OTP_RESEND_COOLDOWN_MS)
-        throw new AppError(
-          ErrorCode.RATE_LIMITED,
-          `Please wait before requesting another code. Retry after ${(OTP_RESEND_COOLDOWN_MS - elaspedMs) / 1_000} seconds.`,
-          HttpStatus.TOO_MANY_REQUESTS,
-        );
-    }
-
     const otp = this.otpService.generate();
     const otpHash = this.otpService.hash(otp);
 
-    await this.emailVerificationRepository.invalidateActiveAndCreate({
+    await this.emailVerificationRepository.issueWithCooldown({
       userId,
       purpose: 'REGISTRATION',
       otpHash,
-      expiresAt: new Date(Date.now() + OTP_TTL_MS),
+      ttlMs: OTP_TTL_MS,
+      cooldownMs: OTP_RESEND_COOLDOWN_MS,
       maxAttempts: OTP_MAX_ATTEMPTS,
     });
 

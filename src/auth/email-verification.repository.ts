@@ -13,11 +13,12 @@ export type ActiveChallenge = Readonly<{
 }>;
 
 export interface EmailVerificationChallengesRepository {
-  invalidateActiveAndCreate(input: {
+  issueWithCooldown(input: {
     userId: string;
     purpose: EmailVerificationPurposeName;
     otpHash: string;
-    expiresAt: Date;
+    ttlMs: number;
+    cooldownMs: number;
     maxAttempts: number;
   }): Promise<void>;
 
@@ -27,11 +28,6 @@ export interface EmailVerificationChallengesRepository {
   ): Promise<ActiveChallenge | null>;
 
   incrementAttempts(challengeId: string): Promise<void>;
-
-  mostRecentIssuedAt(
-    userId: string,
-    purpose: EmailVerificationPurposeName,
-  ): Promise<Date | null>;
 
   consumeAndVerifyEmail(challengeId: string, userId: string): Promise<void>;
 }

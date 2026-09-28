@@ -25,6 +25,105 @@ type EmailVerificationChallengeSource = Pick<
 @Injectable()
 export class PrismaEmailVerificationRepository implements EmailVerificationChallengesRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async issueWithCooldown(input: {
+    userId: string;
+    purpose: EmailVerificationPurposeName;
+    otpHash: string;
+    ttlMs: number;
+    cooldownMs: number;
+    maxAttempts: number;
+  }): Promise<void> {
+    const db = this.prisma.db;
+    const lockUser = db.raw
+      .sql`SELECT id FROM users WHERE id = ${input.userId} FOR UPDATE`
+      .returnsRow({ id: 'pg/uuid@1' })
+      .build();
+
+    const readClock = db.raw.sql`SELECT clock_timestamp() AS "now"`
+      .returnsRow({
+        now: 'pg/timestamptz-temporal@1',
+      })
+      .build();
+
+    try {
+      await db.transaction(async (tx) => {
+        let userFound = false;
+        for await (const _row of tx.query(lockUser)) {
+          userFound = true;
+        }
+
+        if (!userFound)
+          throw new AppError(
+            ErrorCode.NOT_FOUND,
+            'User not found',
+            HttpStatus.NOT_FOUND,
+          );
+
+        let now: Temporal.Instant | null = null;
+        for await (const row of tx.query(readClock)) {
+          now = row.now;
+        }
+
+        if (now === null) throw new Error('Could not read the database clock');
+
+        const latest = await tx.orm.public.EmailVerificationChallenge.where({
+          userId: input.userId,
+          purpose: input.purpose,
+        })
+          .orderBy((challenge) => challenge.createdAt.desc())
+          .first();
+
+        if (latest) {
+          const elapsedMs =
+            now.epochMilliseconds - latest.createdAt.epochMilliseconds;
+
+          if (elapsedMs < input.cooldownMs) {
+            const retryAfterSeconds = Math.ceil(
+              (input.cooldownMs - elapsedMs) / 1_000,
+            );
+            throw new AppError(
+              ErrorCode.RATE_LIMITED,
+              `Please wait before requesting another code. Retry after ${retryAfterSeconds} seconds.`,
+              HttpStatus.TOO_MANY_REQUESTS,
+            );
+          }
+        }
+
+        await tx.orm.public.EmailVerificationChallenge.where({
+          userId: input.userId,
+          purpose: input.purpose,
+          consumedAt: null,
+        }).updateAll({
+          consumedAt: Temporal.Now.instant(),
+        });
+
+        await tx.orm.public.EmailVerificationChallenge.create({
+          userId: input.userId,
+          purpose: input.purpose,
+          otpHash: input.otpHash,
+          createdAt: now,
+          expiresAt: now.add({ milliseconds: input.ttlMs }),
+          attemptCount: 0,
+          maxAttempts: input.maxAttempts,
+        });
+      });
+    } catch (error) {
+      if (
+        isPostgresError(error) &&
+        ('sqlState' in error ? error.sqlState : error.cause.sqlState) ===
+          POSTGRES_UNIQUE_VIOLATION
+      ) {
+        throw new AppError(
+          ErrorCode.CONFLICT,
+          'A verification code was already issued a moment ago. Please try again shortly.',
+          HttpStatus.CONFLICT,
+        );
+      }
+      throw error;
+    }
+  }
+
   async consumeAndVerifyEmail(
     challengeId: string,
     userId: string,
@@ -42,49 +141,6 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
         verifiedAt: Temporal.Now.instant(),
       });
     });
-  }
-
-  async invalidateActiveAndCreate(input: {
-    userId: string;
-    purpose: EmailVerificationPurposeName;
-    otpHash: string;
-    expiresAt: Date;
-    maxAttempts: number;
-  }): Promise<void> {
-    try {
-      await this.prisma.db.transaction(async (tx) => {
-        await tx.orm.public.EmailVerificationChallenge.where({
-          userId: input.userId,
-          purpose: input.purpose,
-          consumedAt: null,
-        }).updateAll({
-          consumedAt: Temporal.Now.instant(),
-        });
-        await tx.orm.public.EmailVerificationChallenge.create({
-          userId: input.userId,
-          purpose: input.purpose,
-          otpHash: input.otpHash,
-          expiresAt: Temporal.Instant.fromEpochMilliseconds(
-            input.expiresAt.getTime(),
-          ),
-          attemptCount: 0,
-          maxAttempts: input.maxAttempts,
-        });
-      });
-    } catch (error: unknown) {
-      if (
-        isPostgresError(error) &&
-        ('sqlState' in error ? error.sqlState : error.cause.sqlState) ===
-          POSTGRES_UNIQUE_VIOLATION
-      ) {
-        throw new AppError(
-          ErrorCode.CONFLICT,
-          'A verification code was already issued a moment ago. Please try again shortly.',
-          HttpStatus.CONFLICT,
-        );
-      }
-      throw error;
-    }
   }
 
   async findActive(
@@ -113,22 +169,6 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
       .build();
 
     await this.prisma.db.runtime().execute(query);
-  }
-
-  async mostRecentIssuedAt(
-    userId: string,
-    purpose: EmailVerificationPurposeName,
-  ): Promise<Date | null> {
-    const row =
-      await this.prisma.db.orm.public.EmailVerificationChallenge.where({
-        userId,
-        purpose,
-        consumedAt: null,
-      })
-        .orderBy([(u) => u.createdAt.desc()])
-        .first();
-
-    return row?.createdAt ? new Date(row.createdAt.epochMilliseconds) : null;
   }
 
   private mapToActiveChallenge(

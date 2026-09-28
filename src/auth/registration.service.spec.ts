@@ -28,22 +28,26 @@ function createService(user: UserProfile) {
   const users = {
     getUserByNormalizedEmail: vi.fn().mockResolvedValue(user),
   } as unknown as UsersRepository;
+
   const passwords = {
     findHashByUserId: vi.fn().mockResolvedValue('existing-hash'),
     updateHashForUser: vi.fn().mockResolvedValue(undefined),
   } as unknown as PasswordCredentialsRepository;
+
   const challenges = {
-    mostRecentIssuedAt: vi.fn().mockResolvedValue(null),
-    invalidateActiveAndCreate: vi.fn().mockResolvedValue(undefined),
+    issueWithCooldown: vi.fn().mockResolvedValue(undefined),
   } as unknown as EmailVerificationChallengesRepository;
+
   const email = {
     send: vi
       .fn()
       .mockResolvedValue({ provider: 'resend', messageId: 'test-id' }),
   } as unknown as EmailProvider;
+
   const hasher = {
     hash: vi.fn().mockResolvedValue('new-hash'),
   } as unknown as PasswordHasher;
+
   const otp = {
     generate: vi.fn().mockReturnValue('123456'),
     hash: vi.fn().mockReturnValue('otp-hash'),
@@ -78,13 +82,15 @@ describe('RegistrationService.register with an existing email', () => {
       pendingUser.id,
       'new-hash',
     );
-    expect(challenges.invalidateActiveAndCreate).toHaveBeenCalledWith(
+
+    expect(challenges.issueWithCooldown).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: pendingUser.id,
         purpose: 'REGISTRATION',
         otpHash: 'otp-hash',
       }),
     );
+
     expect(email.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: pendingUser.primaryEmail?.display,
@@ -104,12 +110,29 @@ describe('RegistrationService.register with an existing email', () => {
       password: 'new-password',
     });
 
-    expect(challenges.invalidateActiveAndCreate).not.toHaveBeenCalled();
+    expect(challenges.issueWithCooldown).not.toHaveBeenCalled();
+
     expect(email.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: pendingUser.primaryEmail?.normalized,
         subject: 'Someone tried to register with your email',
       }),
     );
+  });
+
+  it('does not send an OTP when the cooldown rejects issuance', async () => {
+    const { service, challenges, email } = createService(pendingUser);
+    vi.mocked(challenges.issueWithCooldown).mockRejectedValue(
+      new Error('Cooldown active'),
+    );
+
+    await expect(
+      service.register({
+        email: 'coolpythoncodes@gmail.com',
+        password: 'new-password',
+      }),
+    ).rejects.toThrow('Cooldown active');
+
+    expect(email.send).not.toHaveBeenCalled();
   });
 });
