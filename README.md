@@ -31,7 +31,10 @@ Future API routes use the `/api/v1` prefix. The health routes are outside that p
 After editing `src/prisma/contract.prisma`, regenerate `src/prisma/contract.json` and `src/prisma/contract.d.ts`:
 
 ```bash
-pnpm run contract:emit
+pnpm prisma contract emit
+pnpm prisma migration plan --name my_change
+# Review the new migration directory before you apply it.
+pnpm prisma db migrate --advance-ref db
 ```
 
 Plan a migration from the latest migration directory, then check the generated snapshot and migration artifacts. Pass `--from` explicitly because the `db` ref may still point to an earlier contract.
