@@ -7,11 +7,14 @@ function createRepository(consumed: object | null) {
   const challengeWhere = vi.fn().mockReturnValue({ update: challengeUpdate });
   const emailUpdate = vi.fn().mockResolvedValue({});
   const emailWhere = vi.fn().mockReturnValue({ update: emailUpdate });
+  const userUpdate = vi.fn().mockResolvedValue({});
+  const userWhere = vi.fn().mockReturnValue({ update: userUpdate });
   const tx = {
     orm: {
       public: {
         EmailVerificationChallenge: { where: challengeWhere },
         UserEmail: { where: emailWhere },
+        User: { where: userWhere },
       },
     },
   };
@@ -28,12 +31,15 @@ function createRepository(consumed: object | null) {
     repository: new PrismaEmailVerificationRepository(prisma),
     challengeWhere,
     emailWhere,
+    userWhere,
+    userUpdate,
   };
 }
 
 describe('PrismaEmailVerificationRepository.consumeAndVerifyEmail', () => {
   it('does not verify the email when no challenge was consumed', async () => {
-    const { repository, challengeWhere, emailWhere } = createRepository(null);
+    const { repository, challengeWhere, emailWhere, userWhere } =
+      createRepository(null);
 
     await repository.consumeAndVerifyEmail('challenge-id', 'user-id');
 
@@ -43,10 +49,13 @@ describe('PrismaEmailVerificationRepository.consumeAndVerifyEmail', () => {
       consumedAt: null,
     });
     expect(emailWhere).not.toHaveBeenCalled();
+    expect(userWhere).not.toHaveBeenCalled();
   });
 
-  it('verifies the primary email after consuming the challenge', async () => {
-    const { repository, emailWhere } = createRepository({ id: 'challenge-id' });
+  it('verifies the primary email and activates the pending user after consuming the challenge', async () => {
+    const { repository, emailWhere, userWhere, userUpdate } = createRepository({
+      id: 'challenge-id',
+    });
 
     await repository.consumeAndVerifyEmail('challenge-id', 'user-id');
 
@@ -54,5 +63,10 @@ describe('PrismaEmailVerificationRepository.consumeAndVerifyEmail', () => {
       userId: 'user-id',
       isPrimary: true,
     });
+    expect(userWhere).toHaveBeenCalledWith({
+      id: 'user-id',
+      status: 'PENDING',
+    });
+    expect(userUpdate).toHaveBeenCalledWith({ status: 'ACTIVE' });
   });
 });

@@ -1,5 +1,6 @@
 export const ErrorCode = {
   INTERNAL: 'internal_error',
+  BAD_REQUEST: 'bad_request',
   VALIDATION: 'validation_error',
   UNAUTHORIZED: 'unauthorized',
   FORBIDDEN: 'forbidden',

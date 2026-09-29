@@ -166,6 +166,13 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
       }).update({
         verifiedAt: Temporal.Now.instant(),
       });
+
+      await tx.orm.public.User.where({
+        id: userId,
+        status: 'PENDING',
+      }).update({
+        status: 'ACTIVE',
+      });
     });
   }
 
