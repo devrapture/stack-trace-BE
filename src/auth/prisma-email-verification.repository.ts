@@ -150,11 +150,16 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
     userId: string,
   ): Promise<void> {
     await this.prisma.db.transaction(async (tx) => {
-      await tx.orm.public.EmailVerificationChallenge.where({
+      const consumed = await tx.orm.public.EmailVerificationChallenge.where({
         id: challengeId,
+        userId,
+        consumedAt: null,
       }).update({
         consumedAt: Temporal.Now.instant(),
       });
+
+      if (!consumed) return;
+
       await tx.orm.public.UserEmail.where({
         userId,
         isPrimary: true,
@@ -180,16 +185,20 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
     return row ? this.mapToActiveChallenge(row) : null;
   }
 
-  async incrementAttempts(challengeId: string): Promise<void> {
+  async incrementAttempts(challengeId: string): Promise<boolean> {
     const query = this.prisma.db.raw.sql`
     UPDATE email_verification_challenges
-    SET attempt_count = attempt_count + 1
+        SET attempt_count = attempt_count + 1, updated_at = now()
     WHERE id = ${challengeId}
+      AND consumed_at IS NULL
+      AND expires_at > now()
+      AND attempt_count < max_attempts
   `
       .affectedCount()
       .build();
 
-    await this.prisma.db.runtime().execute(query);
+    const { affectedRows } = await this.prisma.db.runtime().execute(query);
+    return affectedRows > 0;
   }
 
   private mapToActiveChallenge(

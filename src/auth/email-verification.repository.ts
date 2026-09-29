@@ -28,7 +28,7 @@ export interface EmailVerificationChallengesRepository {
     purpose: EmailVerificationPurposeName,
   ): Promise<ActiveChallenge | null>;
 
-  incrementAttempts(challengeId: string): Promise<void>;
+  incrementAttempts(challengeId: string): Promise<boolean>;
 
   consumeAndVerifyEmail(challengeId: string, userId: string): Promise<void>;
 }
