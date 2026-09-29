@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createHmac, randomInt, timingSafeEqual } from 'crypto';
-import { APP_CONFIG, type AppConfig } from '../config/app-config.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 
 export const OTP_LENGTH = 6;
 export const OTP_TTL_MS = 10 * 60 * 1_000;

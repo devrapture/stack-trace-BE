@@ -1,30 +1,33 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { EMAIL_PROVIDER, type EmailProvider } from '../email/email-provider.js';
-import { accountEmail } from '../email/templates/account-email.js';
-import { normalizeEmail } from '../users/normalize-email.js';
-import { UserProfile } from '../users/user.model.js';
+import {
+  EMAIL_PROVIDER,
+  type EmailProvider,
+} from '../../email/email-provider.js';
+import { accountEmail } from '../../email/templates/account-email.js';
+import { normalizeEmail } from '../../users/normalize-email.js';
+import { UserProfile } from '../../users/user.model.js';
 import {
   UserEmailAlreadyExistsError,
   USERS_REPOSITORY,
   type UsersRepository,
-} from '../users/users.repository.js';
-import { RegisterDto, RegisterResponseDto } from './dto/register.dto.js';
+} from '../../users/users.repository.js';
+import { RegisterDto, RegisterResponseDto } from './register.dto.js';
 import {
   EMAIL_VERIFICATION_REPOSITORY,
   type EmailVerificationChallengesRepository,
-} from './email-verification.repository.js';
+} from '../email-verification/email-verification.repository.js';
 import {
   OTP_MAX_ATTEMPTS,
   OTP_RESEND_COOLDOWN_MS,
   OTP_TTL_MS,
   OtpService,
-} from './otp.service.js';
+} from '../email-verification/otp.service.js';
 import {
   PASSWORD_CREDENTIALS_REPOSITORY,
   type PasswordCredentialsRepository,
-} from './password/password-credentials.repository.js';
-import { validatePassword } from './password/password-policy.js';
-import { PasswordHasher } from './password/password.hasher.js';
+} from '../password/password-credentials.repository.js';
+import { validatePassword } from '../password/password-policy.js';
+import { PasswordHasher } from '../password/password.hasher.js';
 
 const GENERIC_RESPONSE: RegisterResponseDto = {
   message:

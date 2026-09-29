@@ -1,13 +1,13 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { Temporal } from 'temporal-polyfill/full';
-import { AppError } from '../common/error/app-error.js';
-import { ErrorCode } from '../common/error/error-codes.js';
-import { FieldOutputTypes } from '../prisma/contract.js';
+import { AppError } from '../../common/error/app-error.js';
+import { ErrorCode } from '../../common/error/error-codes.js';
+import { FieldOutputTypes } from '../../prisma/contract.js';
 import {
   isPostgresError,
   POSTGRES_UNIQUE_VIOLATION,
-} from '../prisma/postgres-error.js';
-import { PrismaService } from '../prisma/prisma.service.js';
+} from '../../prisma/postgres-error.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   ActiveChallenge,
   EmailVerificationChallengesRepository,

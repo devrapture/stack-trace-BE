@@ -1,11 +1,11 @@
 import { vi } from 'vitest';
-import type { EmailProvider } from '../email/email-provider.js';
-import type { UserProfile } from '../users/user.model.js';
-import type { UsersRepository } from '../users/users.repository.js';
-import type { EmailVerificationChallengesRepository } from './email-verification.repository.js';
-import type { OtpService } from './otp.service.js';
-import type { PasswordCredentialsRepository } from './password/password-credentials.repository.js';
-import type { PasswordHasher } from './password/password.hasher.js';
+import type { EmailProvider } from '../../email/email-provider.js';
+import type { UserProfile } from '../../users/user.model.js';
+import type { UsersRepository } from '../../users/users.repository.js';
+import type { EmailVerificationChallengesRepository } from '../email-verification/email-verification.repository.js';
+import type { OtpService } from '../email-verification/otp.service.js';
+import type { PasswordCredentialsRepository } from '../password/password-credentials.repository.js';
+import type { PasswordHasher } from '../password/password.hasher.js';
 import { RegistrationService } from './registration.service.js';
 
 const pendingUser: UserProfile = {

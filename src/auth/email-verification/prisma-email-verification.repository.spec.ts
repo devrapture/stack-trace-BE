@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { PrismaService } from '../prisma/prisma.service.js';
+import type { PrismaService } from '../../prisma/prisma.service.js';
 import { PrismaEmailVerificationRepository } from './prisma-email-verification.repository.js';
 
 function createRepository(consumed: object | null) {

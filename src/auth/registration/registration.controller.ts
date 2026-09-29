@@ -1,10 +1,10 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { RegisterDto } from './dto/register.dto.js';
+import { RegisterDto } from './register.dto.js';
 import { RegistrationService } from './registration.service.js';
 
 @Controller('auth')
-export class AuthController {
+export class RegistrationController {
   constructor(private readonly registrationService: RegistrationService) {}
   @Post('register')
   @HttpCode(202)
