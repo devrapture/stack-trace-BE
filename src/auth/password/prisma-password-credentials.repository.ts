@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import {
   isPostgresError,
   POSTGRES_UNIQUE_VIOLATION,
-} from '../../prisma/postgres-error';
-import { PrismaService } from '../../prisma/prisma.service';
+} from '../../prisma/postgres-error.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   PasswordCredentialsRepository,
   PasswordIdentityAlreadyExistsError,
-} from './password-credentials.repository';
+} from './password-credentials.repository.js';
 
 @Injectable()
 export class PrismaPasswordCredentialsRepository implements PasswordCredentialsRepository {
@@ -34,6 +34,26 @@ export class PrismaPasswordCredentialsRepository implements PasswordCredentialsR
       }
       throw error;
     }
+  }
+
+  async updateHashForUser(userId: string, passwordHash: string): Promise<void> {
+    // Overwrite the password hash when resuming an unverified registration so the latest submitted password is used.
+    const identity = await this.prisma.db.orm.public.AuthIdentity.where({
+      userId,
+      provider: 'PASSWORD',
+    })
+      .include('passwordCredential')
+      .first();
+
+    if (!identity) {
+      throw new Error('No password identity found for user.');
+    }
+
+    await this.prisma.db.orm.public.PasswordCredential.where({
+      authIdentityId: identity.id,
+    }).update({
+      passwordHash,
+    });
   }
 
   async findHashByUserId(userId: string): Promise<string | null> {

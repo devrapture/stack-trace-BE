@@ -8,6 +8,10 @@
       "model": "AuthIdentity",
       "namespace": "public"
     },
+    "email_verification_challenges": {
+      "model": "EmailVerificationChallenge",
+      "namespace": "public"
+    },
     "password_credential": {
       "model": "PasswordCredential",
       "namespace": "public"
@@ -39,6 +43,15 @@
               {
                 "name": "GITHUB",
                 "value": "GITHUB"
+              }
+            ]
+          },
+          "EmailVerificationPurpose": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "REGISTRATION",
+                "value": "REGISTRATION"
               }
             ]
           },
@@ -188,6 +201,146 @@
               "table": "auth_identities"
             }
           },
+          "EmailVerificationChallenge": {
+            "fields": {
+              "attemptCount": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "consumedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "expiresAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "maxAttempts": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "otpHash": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "purpose": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "EmailVerificationPurpose",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "attemptCount": {
+                  "column": "attempt_count"
+                },
+                "consumedAt": {
+                  "column": "consumed_at"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "expiresAt": {
+                  "column": "expires_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "maxAttempts": {
+                  "column": "max_attempts"
+                },
+                "otpHash": {
+                  "column": "otp_hash"
+                },
+                "purpose": {
+                  "column": "purpose"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "userId": {
+                  "column": "user_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "email_verification_challenges"
+            }
+          },
           "PasswordCredential": {
             "fields": {
               "authIdentityId": {
@@ -283,7 +436,7 @@
                 }
               },
               "displayName": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -617,6 +770,127 @@
                 }
               ]
             },
+            "email_verification_challenges": {
+              "checks": [
+                {
+                  "expression": "\"purpose\" IN ('REGISTRATION')",
+                  "name": "email_verification_challenges_purpose_check_1462639e",
+                  "prefix": "email_verification_challenges_purpose_check"
+                }
+              ],
+              "columns": {
+                "attempt_count": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "consumed_at": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "expires_at": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                },
+                "max_attempts": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "otp_hash": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "purpose": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "EmailVerificationPurpose",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "user_id": {
+                  "codecId": "pg/uuid@1",
+                  "nativeType": "uuid",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "email_verification_challenges"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "user_id"
+                  ],
+                  "name": "email_verification_challenges_user_id_idx_6c952402",
+                  "prefix": "email_verification_challenges_user_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "user_id",
+                    "purpose"
+                  ],
+                  "name": "email_verification_challenges_user_id_purpose_idx_b55b3751",
+                  "prefix": "email_verification_challenges_user_id_purpose_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "password_credential": {
               "columns": {
                 "auth_identity_id": {
@@ -810,7 +1084,7 @@
                 "display_name": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/uuid@1",
@@ -891,6 +1165,12 @@
                 "GITHUB"
               ]
             },
+            "EmailVerificationPurpose": {
+              "kind": "valueSet",
+              "values": [
+                "REGISTRATION"
+              ]
+            },
             "UserRole": {
               "kind": "valueSet",
               "values": [
@@ -913,10 +1193,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d1d40059a5f42c9e867d7c1b4eda5c727a286ca2f707692c5b04c9f38b500074"
+    "storageHash": "081b63f11ea91c1382a8c554e9e79e4aa7cf8dc1d716b6075693c8ac95a3be93"
   },
   "execution": {
-    "executionHash": "ded2d3a96083277bfa368d9d16795fe0d25647058313c378c9b6be5566597fc0",
+    "executionHash": "d82e6e6dab6922aef6fd691042dffdf152c8c3a41214e6c29cb6d5c10c2e034c",
     "mutations": {
       "defaults": [
         {
@@ -943,6 +1223,32 @@
             "column": "updated_at",
             "namespace": "public",
             "table": "auth_identities"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "email_verification_challenges"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "instantNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "instantNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updated_at",
+            "namespace": "public",
+            "table": "email_verification_challenges"
           }
         },
         {

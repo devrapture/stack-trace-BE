@@ -24,11 +24,10 @@ export type UserProfileSource = Pick<
 
 export function mapToUserProfile(user: UserProfileSource): UserProfile {
   const primaryEmail = user.email.find((email) => email.isPrimary);
-
   return Object.freeze({
     id: user.id,
     publicId: user.publicId,
-    displayName: user.displayName,
+    displayName: user.displayName ?? undefined,
     role: user.role,
     avatarUrl: user.avatarUrl,
     status: user.status,

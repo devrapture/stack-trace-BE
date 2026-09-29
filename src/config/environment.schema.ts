@@ -19,6 +19,10 @@ export interface ValidatedEnvironment {
   readonly PORT: number;
   readonly LOG_LEVEL: LogLevel;
   readonly DATABASE_URL: string;
+  readonly OTP_HASH_SECRET: string;
+  readonly RESEND_API_KEY: string;
+  readonly RESEND_FROM_EMAIL: string;
+  readonly RESEND_FROM_NAME: string;
 }
 
 export const environmentSchema = Joi.object<ValidatedEnvironment>({
@@ -42,4 +46,9 @@ export const environmentSchema = Joi.object<ValidatedEnvironment>({
       .default('silent'),
   }),
   DATABASE_URL: Joi.string().required(),
+  OTP_HASH_SECRET: Joi.string().min(32).required(),
+
+  RESEND_API_KEY: Joi.string().trim().required(),
+  RESEND_FROM_EMAIL: Joi.string().trim().email().required(),
+  RESEND_FROM_NAME: Joi.string().trim().required(),
 });

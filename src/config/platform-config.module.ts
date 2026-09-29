@@ -1,5 +1,7 @@
 import { FactoryProvider, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_CONFIG, createAppConfig } from './app-config.js';
 import { createDatabaseConfig, DATABASE_CONFIG } from './database-config.js';
 import {
@@ -20,6 +22,18 @@ const readValidatedEnvironment = (
     infer: true,
   }),
   DATABASE_URL: config.getOrThrow('DATABASE_URL', {
+    infer: true,
+  }),
+  OTP_HASH_SECRET: config.getOrThrow('OTP_HASH_SECRET', {
+    infer: true,
+  }),
+  RESEND_API_KEY: config.getOrThrow('RESEND_API_KEY', {
+    infer: true,
+  }),
+  RESEND_FROM_EMAIL: config.getOrThrow('RESEND_FROM_EMAIL', {
+    infer: true,
+  }),
+  RESEND_FROM_NAME: config.getOrThrow('RESEND_FROM_NAME', {
     infer: true,
   }),
 });
@@ -52,8 +66,16 @@ const databaseConfigProvider: FactoryProvider = {
         },
       },
     }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
   ],
-  providers: [appConfigProvider, databaseConfigProvider],
+  providers: [
+    appConfigProvider,
+    databaseConfigProvider,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
   exports: [APP_CONFIG, DATABASE_CONFIG],
 })
 export class PlatformConfigModule {}

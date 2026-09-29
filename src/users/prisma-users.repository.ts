@@ -1,9 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import type { FieldOutputTypes } from '../prisma/contract.d';
+import {
+  isPostgresError,
+  POSTGRES_UNIQUE_VIOLATION,
+} from '../prisma/postgres-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { normalizeEmail } from './normalize-email.js';
 import { mapToUserProfile } from './user-profile.mapper.js';
-import type { UserProfile } from './user.model.js';
-import type { UsersRepository } from './users.repository.js';
+import type { NewUserWithEmail, UserProfile } from './user.model.js';
+import {
+  UserEmailAlreadyExistsError,
+  type UsersRepository,
+} from './users.repository.js';
 
 type UserField = keyof FieldOutputTypes['public']['User'];
 type EmailFields = keyof FieldOutputTypes['public']['UserEmail'];
@@ -31,6 +39,48 @@ const EMAIL_SELECT = [
 export class PrismaUserRepository implements UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async createWithPrimaryEmailAndPassword(
+    input: NewUserWithEmail & { passwordHash: string },
+  ): Promise<UserProfile> {
+    const { displayEmail, normalizedEmail } = normalizeEmail(input.email);
+
+    try {
+      return await this.prisma.db.transaction(async (tx) => {
+        const user = await tx.orm.public.User.include('email').create({
+          displayName: displayEmail,
+          email: (email) =>
+            email.create([
+              {
+                email: displayEmail,
+                normalizedEmail,
+                isPrimary: true,
+              },
+            ]),
+        });
+
+        const identity = await tx.orm.public.AuthIdentity.create({
+          provider: 'PASSWORD',
+          userId: user.id,
+        });
+
+        await tx.orm.public.PasswordCredential.create({
+          authIdentityId: identity.id,
+          passwordHash: input.passwordHash,
+        });
+
+        return mapToUserProfile(user);
+      });
+    } catch (error: unknown) {
+      if (
+        isPostgresError(error) &&
+        ('sqlState' in error ? error.sqlState : error.cause.sqlState) ===
+          POSTGRES_UNIQUE_VIOLATION
+      ) {
+        throw new UserEmailAlreadyExistsError();
+      }
+      throw error;
+    }
+  }
   async findByPublicId(publicId: string): Promise<UserProfile | null> {
     const user = await this.prisma.db.orm.public.User.where({ publicId })
       .select(...USER_SELECT)

@@ -1,0 +1,161 @@
+[
+  {
+    "id": "table.email_verification_challenges",
+    "label": "Create table \"email_verification_challenges\"",
+    "summary": "Creates table \"email_verification_challenges\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "email_verification_challenges"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"email_verification_challenges\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"email_verification_challenges\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"email_verification_challenges\"",
+        "sql": "CREATE TABLE \"public\".\"email_verification_challenges\" (\n  \"attempt_count\" int4 NOT NULL,\n  \"consumed_at\" timestamptz(3),\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"expires_at\" timestamptz(3) NOT NULL,\n  \"id\" uuid NOT NULL,\n  \"max_attempts\" int4 NOT NULL,\n  \"otp_hash\" text NOT NULL,\n  \"purpose\" text NOT NULL,\n  \"updated_at\" timestamptz NOT NULL,\n  \"user_id\" uuid NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"email_verification_challenges_purpose_check_1462639e\" CHECK (\"purpose\" IN ('REGISTRATION'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"email_verification_challenges\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"email_verification_challenges\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.email_verification_challenges.email_verification_challenges_user_id_idx_6c952402",
+    "label": "Create index \"email_verification_challenges_user_id_idx_6c952402\" on \"email_verification_challenges\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "email_verification_challenges_user_id_idx_6c952402",
+        "table": "email_verification_challenges"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"email_verification_challenges_user_id_idx_6c952402\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"email_verification_challenges_user_id_idx_6c952402\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"email_verification_challenges_user_id_idx_6c952402\"",
+        "sql": "CREATE INDEX \"email_verification_challenges_user_id_idx_6c952402\" ON \"public\".\"email_verification_challenges\" (\"user_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"email_verification_challenges_user_id_idx_6c952402\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"email_verification_challenges_user_id_idx_6c952402\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.email_verification_challenges.email_verification_challenges_user_id_purpose_idx_b55b3751",
+    "label": "Create index \"email_verification_challenges_user_id_purpose_idx_b55b3751\" on \"email_verification_challenges\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "email_verification_challenges_user_id_purpose_idx_b55b3751",
+        "table": "email_verification_challenges"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"email_verification_challenges_user_id_purpose_idx_b55b3751\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"email_verification_challenges_user_id_purpose_idx_b55b3751\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"email_verification_challenges_user_id_purpose_idx_b55b3751\"",
+        "sql": "CREATE INDEX \"email_verification_challenges_user_id_purpose_idx_b55b3751\" ON \"public\".\"email_verification_challenges\" (\"user_id\", \"purpose\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"email_verification_challenges_user_id_purpose_idx_b55b3751\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"email_verification_challenges_user_id_purpose_idx_b55b3751\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.email_verification_challenges.email_verification_challenges_user_id_fkey",
+    "label": "Add foreign key \"email_verification_challenges_user_id_fkey\" on \"email_verification_challenges\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "email_verification_challenges_user_id_fkey",
+        "table": "email_verification_challenges"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"email_verification_challenges_user_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "email_verification_challenges_user_id_fkey",
+          "public",
+          "\"public\".\"email_verification_challenges\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"email_verification_challenges_user_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"email_verification_challenges\"\nADD CONSTRAINT \"email_verification_challenges_user_id_fkey\"\nFOREIGN KEY (\"user_id\")\nREFERENCES \"public\".\"users\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"email_verification_challenges_user_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "email_verification_challenges_user_id_fkey",
+          "public",
+          "\"public\".\"email_verification_challenges\""
+        ]
+      }
+    ]
+  }
+]

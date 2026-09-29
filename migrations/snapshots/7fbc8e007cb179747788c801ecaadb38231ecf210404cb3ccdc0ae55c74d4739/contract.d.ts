@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'081b63f11ea91c1382a8c554e9e79e4aa7cf8dc1d716b6075693c8ac95a3be93'>;
+  StorageHashBase<'7fbc8e007cb179747788c801ecaadb38231ecf210404cb3ccdc0ae55c74d4739'>;
 export type ExecutionHash =
   ExecutionHashBase<'d82e6e6dab6922aef6fd691042dffdf152c8c3a41214e6c29cb6d5c10c2e034c'>;
 export type ProfileHash =
@@ -272,7 +272,7 @@ export type FieldOutputTypes = {
     readonly User: {
       readonly id: CodecTypes['pg/uuid@1']['output'];
       readonly publicId: CodecTypes['pg/uuid@1']['output'];
-      readonly displayName: CodecTypes['pg/text@1']['output'] | null;
+      readonly displayName: CodecTypes['pg/text@1']['output'];
       readonly avatarUrl: CodecTypes['pg/text@1']['output'] | null;
       readonly role: 'USER' | 'ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED';
@@ -324,7 +324,7 @@ export type FieldInputTypes = {
     readonly User: {
       readonly id: CodecTypes['pg/uuid@1']['input'];
       readonly publicId: CodecTypes['pg/uuid@1']['input'];
-      readonly displayName: CodecTypes['pg/text@1']['input'] | null;
+      readonly displayName: CodecTypes['pg/text@1']['input'];
       readonly avatarUrl: CodecTypes['pg/text@1']['input'] | null;
       readonly role: 'USER' | 'ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED';
@@ -386,7 +386,7 @@ export type StorageColumnTypes = {
     readonly users: {
       readonly avatar_url: CodecTypes['pg/text@1']['output'] | null;
       readonly created_at: CodecTypes['pg/timestamptz-temporal@1']['output'];
-      readonly display_name: CodecTypes['pg/text@1']['output'] | null;
+      readonly display_name: CodecTypes['pg/text@1']['output'];
       readonly id: CodecTypes['pg/uuid@1']['output'];
       readonly last_login_at: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
       readonly publicId: CodecTypes['pg/uuid@1']['output'];
@@ -438,7 +438,7 @@ export type StorageColumnInputTypes = {
     readonly users: {
       readonly avatar_url: CodecTypes['pg/text@1']['input'] | null;
       readonly created_at: CodecTypes['pg/timestamptz-temporal@1']['input'];
-      readonly display_name: CodecTypes['pg/text@1']['input'] | null;
+      readonly display_name: CodecTypes['pg/text@1']['input'];
       readonly id: CodecTypes['pg/uuid@1']['input'];
       readonly last_login_at: CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
       readonly publicId: CodecTypes['pg/uuid@1']['input'];
@@ -453,7 +453,7 @@ export namespace Models {
   export type public_User = {
     id: CodecTypes['pg/uuid@1']['output'];
     publicId: CodecTypes['pg/uuid@1']['output'];
-    displayName: CodecTypes['pg/text@1']['output'] | null;
+    displayName: CodecTypes['pg/text@1']['output'];
     avatarUrl: CodecTypes['pg/text@1']['output'] | null;
     role: 'USER' | 'ADMIN';
     status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED';
@@ -825,7 +825,7 @@ type ContractBase = Omit<
                 readonly display_name: {
                   readonly nativeType: 'text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
+                  readonly nullable: false;
                 };
                 readonly avatar_url: {
                   readonly nativeType: 'text';
@@ -1144,7 +1144,7 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
               };
               readonly displayName: {
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly avatarUrl: {

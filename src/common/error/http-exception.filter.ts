@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { Logger } from 'nestjs-pino';
+import { AppError } from './app-error.js';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -17,9 +18,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<FastifyRequest>();
     const requestId = request.id ?? 'unavailable';
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof AppError
+        ? exception.httpStatus
+        : exception instanceof HttpException
+          ? exception.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR;
 
     this.logger.error(
       {
@@ -41,11 +44,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     response.status(status).send({
       statusCode: status,
       error: HttpStatus[status] ?? 'Error',
+      ...(exception instanceof AppError ? { code: exception.code } : {}),
       message: publicMessage,
     });
   }
 
   private publicMessage(status: number, exception: unknown): string | string[] {
+    if (exception instanceof AppError) {
+      if (status < 500) return exception.message;
+
+      if (status === HttpStatus.SERVICE_UNAVAILABLE) {
+        return 'The service is temporarily unavailable. Please try again later.';
+      }
+
+      return 'The request could not be completed';
+    }
+
     if (exception instanceof HttpException && status < 500) {
       const body = exception.getResponse();
       if (typeof body === 'string') return body;

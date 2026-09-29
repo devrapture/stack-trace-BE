@@ -5,7 +5,7 @@ export type AuthProviderName = 'PASSWORD' | 'GOOGLE' | 'GITHUB';
 export type UserProfile = Readonly<{
   id: string;
   publicId: string;
-  displayName: string;
+  displayName?: string;
   role: UserRole;
   avatarUrl: string | null;
   status: UserStatus;
@@ -19,7 +19,6 @@ export type UserProfile = Readonly<{
   updatedAt: Date;
 }>;
 
-export interface NewUserWithEmail {
-  displayName: string;
+export type NewUserWithEmail = Readonly<{
   email: string;
-}
+}>;
