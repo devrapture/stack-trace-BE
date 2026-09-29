@@ -38,11 +38,15 @@ const EMAIL_SELECT = [
 @Injectable()
 export class PrismaUserRepository implements UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
-  async createWithPrimaryEmail(input: NewUserWithEmail): Promise<UserProfile> {
+
+  async createWithPrimaryEmailAndPassword(
+    input: NewUserWithEmail & { passwordHash: string },
+  ): Promise<UserProfile> {
     const { displayEmail, normalizedEmail } = normalizeEmail(input.email);
+
     try {
-      const user = await this.prisma.db.orm.public.User.include('email').create(
-        {
+      return await this.prisma.db.transaction(async (tx) => {
+        const user = await tx.orm.public.User.include('email').create({
           displayName: displayEmail,
           email: (email) =>
             email.create([
@@ -52,10 +56,20 @@ export class PrismaUserRepository implements UsersRepository {
                 isPrimary: true,
               },
             ]),
-        },
-      );
+        });
 
-      return mapToUserProfile(user);
+        const identity = await tx.orm.public.AuthIdentity.create({
+          provider: 'PASSWORD',
+          userId: user.id,
+        });
+
+        await tx.orm.public.PasswordCredential.create({
+          authIdentityId: identity.id,
+          passwordHash: input.passwordHash,
+        });
+
+        return mapToUserProfile(user);
+      });
     } catch (error: unknown) {
       if (
         isPostgresError(error) &&

@@ -33,6 +33,7 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
     ttlMs: number;
     cooldownMs: number;
     maxAttempts: number;
+    passwordHash?: string;
   }): Promise<void> {
     const db = this.prisma.db;
     const lockUser = db.raw
@@ -88,6 +89,26 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
               HttpStatus.TOO_MANY_REQUESTS,
             );
           }
+        }
+        // This runs only after the cooldown check succeeds. It shares the
+        // transaction with the challenge changes below.
+        if (input.passwordHash !== undefined) {
+          const identity = await tx.orm.public.AuthIdentity.where({
+            userId: input.userId,
+            provider: 'PASSWORD',
+          })
+            .include('passwordCredential')
+            .first();
+
+          if (!identity) {
+            throw new Error('No password identity found for user.');
+          }
+
+          await tx.orm.public.PasswordCredential.where({
+            authIdentityId: identity.id,
+          }).update({
+            passwordHash: input.passwordHash,
+          });
         }
 
         await tx.orm.public.EmailVerificationChallenge.where({

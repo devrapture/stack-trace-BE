@@ -61,13 +61,11 @@ export class RegistrationService {
     const passwordHash = await this.passwordHasher.hash(dto.password);
 
     try {
-      const user = await this.userService.createWithPrimaryEmail({
+      const user = await this.userService.createWithPrimaryEmailAndPassword({
         email: displayEmail,
-      });
-      await this.passwordCredentialsRepository.createForUser(
-        user.id,
         passwordHash,
-      );
+      });
+
       await this.issueAndSendOtp(user.id, displayEmail);
     } catch (error) {
       if (error instanceof UserEmailAlreadyExistsError) {
@@ -90,6 +88,7 @@ export class RegistrationService {
 
     const existingHash =
       await this.passwordCredentialsRepository.findHashByUserId(user.id);
+
     if (existingHash && (user.status !== 'PENDING' || primaryEmail.verified)) {
       await this.emailProvider.send({
         to: primaryEmail.normalized,
@@ -102,12 +101,11 @@ export class RegistrationService {
 
     if (existingHash) {
       const passwordHash = await this.passwordHasher.hash(password);
-      await this.passwordCredentialsRepository.updateHashForUser(
+      await this.issueAndSendOtp(
         user.id,
+        primaryEmail.normalized,
         passwordHash,
       );
-
-      await this.issueAndSendOtp(user.id, primaryEmail.normalized);
       return;
     }
 
@@ -122,6 +120,7 @@ export class RegistrationService {
   private async issueAndSendOtp(
     userId: string,
     toEmail: string,
+    passwordHash?: string,
   ): Promise<void> {
     const otp = this.otpService.generate();
     const otpHash = this.otpService.hash(otp);
@@ -133,6 +132,7 @@ export class RegistrationService {
       ttlMs: OTP_TTL_MS,
       cooldownMs: OTP_RESEND_COOLDOWN_MS,
       maxAttempts: OTP_MAX_ATTEMPTS,
+      passwordHash,
     });
 
     await this.emailProvider.send({

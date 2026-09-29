@@ -3,24 +3,35 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import { PrismaUserRepository } from './prisma-users.repository.js';
 import { UserEmailAlreadyExistsError } from './users.repository.js';
 
-describe('PrismaUserRepository.createWithPrimaryEmail', () => {
+describe('PrismaUserRepository.createWithPrimaryEmailAndPassword', () => {
   async function createWithError(error: unknown): Promise<void> {
-    const prisma = {
-      db: {
-        orm: {
-          public: {
-            User: {
-              include: vi.fn().mockReturnValue({
-                create: vi.fn().mockRejectedValue(error),
-              }),
-            },
+    const tx = {
+      orm: {
+        public: {
+          User: {
+            include: vi.fn().mockReturnValue({
+              create: vi.fn().mockRejectedValue(error),
+            }),
           },
         },
+      },
+    };
+    const prisma = {
+      db: {
+        transaction: vi
+          .fn()
+          .mockImplementation(
+            async (callback: (transaction: typeof tx) => Promise<unknown>) =>
+              callback(tx),
+          ),
       },
     } as unknown as PrismaService;
 
     const repository = new PrismaUserRepository(prisma);
-    await repository.createWithPrimaryEmail({ email: 'Person@Example.com' });
+    await repository.createWithPrimaryEmailAndPassword({
+      email: 'Person@Example.com',
+      passwordHash: 'password-hash',
+    });
   }
 
   it.each([

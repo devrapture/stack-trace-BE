@@ -20,6 +20,7 @@ export interface EmailVerificationChallengesRepository {
     ttlMs: number;
     cooldownMs: number;
     maxAttempts: number;
+    passwordHash?: string;
   }): Promise<void>;
 
   findActive(

@@ -11,7 +11,9 @@ export class UserEmailAlreadyExistsError extends Error {
 }
 
 export interface UsersRepository {
-  createWithPrimaryEmail(input: NewUserWithEmail): Promise<UserProfile>;
+  createWithPrimaryEmailAndPassword(
+    input: NewUserWithEmail & { passwordHash: string },
+  ): Promise<UserProfile>;
   getUserByNormalizedEmail(
     normalizedEmail: string,
   ): Promise<UserProfile | null>;

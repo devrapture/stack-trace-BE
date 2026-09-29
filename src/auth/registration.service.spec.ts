@@ -78,18 +78,15 @@ describe('RegistrationService.register with an existing email', () => {
       password: 'new-password',
     });
 
-    expect(passwords.updateHashForUser).toHaveBeenCalledWith(
-      pendingUser.id,
-      'new-hash',
-    );
-
     expect(challenges.issueWithCooldown).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: pendingUser.id,
         purpose: 'REGISTRATION',
         otpHash: 'otp-hash',
+        passwordHash: 'new-hash',
       }),
     );
+    expect(passwords.updateHashForUser).not.toHaveBeenCalled();
 
     expect(email.send).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -121,7 +118,8 @@ describe('RegistrationService.register with an existing email', () => {
   });
 
   it('does not send an OTP when the cooldown rejects issuance', async () => {
-    const { service, challenges, email } = createService(pendingUser);
+    const { service, passwords, challenges, email } =
+      createService(pendingUser);
     vi.mocked(challenges.issueWithCooldown).mockRejectedValue(
       new Error('Cooldown active'),
     );
@@ -133,6 +131,10 @@ describe('RegistrationService.register with an existing email', () => {
       }),
     ).rejects.toThrow('Cooldown active');
 
+    expect(challenges.issueWithCooldown).toHaveBeenCalledWith(
+      expect.objectContaining({ passwordHash: 'new-hash' }),
+    );
+    expect(passwords.updateHashForUser).not.toHaveBeenCalled();
     expect(email.send).not.toHaveBeenCalled();
   });
 });
