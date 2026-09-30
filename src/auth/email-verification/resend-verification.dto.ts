@@ -1,7 +1,12 @@
 import { IsEmail } from 'class-validator';
 
 export class ResendVerificationDto {
-  @IsEmail()
+  @IsEmail(
+    {},
+    {
+      message: 'Please enter a valid email address.',
+    },
+  )
   email: string;
 }
 

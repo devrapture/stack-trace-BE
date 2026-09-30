@@ -1,7 +1,7 @@
 import { IsEmail, Matches } from 'class-validator';
 
 export class VerifyEmailOtpDto {
-  @IsEmail({}, { message: 'email must be a valid email' })
+  @IsEmail({}, { message: 'Please enter a valid email address.' })
   email: string;
 
   @Matches(/^\d{6}$/, { message: 'otp must be exactly 6 digits' })
