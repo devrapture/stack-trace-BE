@@ -1,4 +1,7 @@
+import { HttpStatus } from '@nestjs/common';
 import { vi } from 'vitest';
+import { AppError } from '../../common/error/app-error.js';
+import { ErrorCode } from '../../common/error/error-codes.js';
 import type { EmailProvider } from '../../email/email-provider.js';
 import type { UserProfile } from '../../users/user.model.js';
 import type { UsersRepository } from '../../users/users.repository.js';
@@ -155,14 +158,36 @@ describe('EmailVerificationService.resend', () => {
     }
   });
 
-  it('does not send a code when issuance is rate limited', async () => {
+  it.each([
+    ['cooldown', ErrorCode.RATE_LIMITED, HttpStatus.TOO_MANY_REQUESTS],
+    ['concurrent issuance', ErrorCode.CONFLICT, HttpStatus.CONFLICT],
+  ])(
+    'returns the generic response during %s',
+    async (_reason, code, status) => {
+      const { service, challenges, email } = createService(pendingUser);
+      vi.mocked(challenges.issueWithCooldown).mockRejectedValue(
+        new AppError(code, 'Account-specific issuance error', status),
+      );
+      const { service: unknownService } = createService(null);
+      const genericResponse = await unknownService.resend({
+        email: 'user@example.com',
+      });
+
+      await expect(
+        service.resend({ email: 'user@example.com' }),
+      ).resolves.toEqual(genericResponse);
+      expect(email.send).not.toHaveBeenCalled();
+    },
+  );
+
+  it('propagates unexpected issuance errors without sending a code', async () => {
     const { service, challenges, email } = createService(pendingUser);
     vi.mocked(challenges.issueWithCooldown).mockRejectedValue(
-      new Error('Cooldown active'),
+      new Error('Database unavailable'),
     );
 
     await expect(service.resend({ email: 'user@example.com' })).rejects.toThrow(
-      'Cooldown active',
+      'Database unavailable',
     );
     expect(email.send).not.toHaveBeenCalled();
   });

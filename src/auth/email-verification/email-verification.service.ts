@@ -86,18 +86,31 @@ export class EmailVerificationService {
     const { normalizedEmail } = normalizeEmail(dto.email);
     const user =
       await this.userRepository.getUserByNormalizedEmail(normalizedEmail);
+
     if (!user?.primaryEmail || user.primaryEmail.verified)
       return GENERIC_RESEND_RESPONSE;
+
     const otp = this.otpService.generate();
     const otpHash = this.otpService.hash(otp);
-    await this.challengeRepository.issueWithCooldown({
-      userId: user.id,
-      purpose: 'REGISTRATION',
-      otpHash,
-      ttlMs: OTP_TTL_MS,
-      cooldownMs: OTP_RESEND_COOLDOWN_MS,
-      maxAttempts: OTP_MAX_ATTEMPTS,
-    });
+
+    try {
+      await this.challengeRepository.issueWithCooldown({
+        userId: user.id,
+        purpose: 'REGISTRATION',
+        otpHash,
+        ttlMs: OTP_TTL_MS,
+        cooldownMs: OTP_RESEND_COOLDOWN_MS,
+        maxAttempts: OTP_MAX_ATTEMPTS,
+      });
+    } catch (error) {
+      if (
+        error instanceof AppError &&
+        (error.code === ErrorCode.RATE_LIMITED ||
+          error.code === ErrorCode.CONFLICT)
+      )
+        return GENERIC_RESEND_RESPONSE;
+      throw error;
+    }
 
     await this.emailProvider.send({
       to: user.primaryEmail.normalized,
