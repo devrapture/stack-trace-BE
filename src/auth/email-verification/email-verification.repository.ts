@@ -30,5 +30,5 @@ export interface EmailVerificationChallengesRepository {
 
   incrementAttempts(challengeId: string): Promise<boolean>;
 
-  consumeAndVerifyEmail(challengeId: string, userId: string): Promise<void>;
+  consumeAndVerifyEmail(challengeId: string, userId: string): Promise<boolean>;
 }

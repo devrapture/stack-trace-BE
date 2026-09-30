@@ -18,13 +18,14 @@ Adjust `DATABASE_URL` in `.env` if you use a different database. `NODE_ENV`, `PO
 
 ## Endpoints
 
+
 | Endpoint       | Purpose                                                                |
 | -------------- | ---------------------------------------------------------------------- |
 | `GET /healthz` | Process liveness.                                                      |
 | `GET /readyz`  | Database readiness; returns HTTP 503 when the database is unavailable. |
 
-Future API routes use the `/api/v1` prefix. The health routes are outside that prefix.
 
+Future API routes use the `/api/v1` prefix. The health routes are outside that prefix.
 
 ## Contract and migrations
 
@@ -56,3 +57,4 @@ pnpm exec tsc --noEmit
 pnpm run test
 pnpm run build
 ```
+

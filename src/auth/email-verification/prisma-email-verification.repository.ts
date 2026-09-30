@@ -148,17 +148,32 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
   async consumeAndVerifyEmail(
     challengeId: string,
     userId: string,
-  ): Promise<void> {
-    await this.prisma.db.transaction(async (tx) => {
-      const consumed = await tx.orm.public.EmailVerificationChallenge.where({
-        id: challengeId,
-        userId,
-        consumedAt: null,
-      }).update({
-        consumedAt: Temporal.Now.instant(),
-      });
+  ): Promise<boolean> {
+    const db = this.prisma.db;
 
-      if (!consumed) return;
+    const consumeChallenge = db.raw.sql`
+    UPDATE email_verification_challenges
+    SET consumed_at = clock_timestamp(),
+      updated_at = clock_timestamp()
+    WHERE id = ${challengeId}
+     AND user_id = ${userId}
+     AND purpose = 'REGISTRATION'
+     AND consumed_at IS NULL
+     AND expires_at > clock_timestamp()
+     AND attempt_count < max_attempts
+    RETURNING id
+    `
+      .returnsRow({ id: 'pg/uuid@1' })
+      .build();
+
+    return db.transaction(async (tx) => {
+      let consumed = false;
+
+      for await (const _row of tx.query(consumeChallenge)) {
+        consumed = true;
+      }
+
+      if (!consumed) return false;
 
       await tx.orm.public.UserEmail.where({
         userId,
@@ -173,6 +188,8 @@ export class PrismaEmailVerificationRepository implements EmailVerificationChall
       }).update({
         status: 'ACTIVE',
       });
+
+      return true;
     });
   }
 

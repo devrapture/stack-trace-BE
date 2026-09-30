@@ -28,6 +28,15 @@ function createService(user: UserProfile | null) {
   } as unknown as UsersRepository;
   const challenges = {
     issueWithCooldown: vi.fn().mockResolvedValue(undefined),
+    findActive: vi.fn().mockResolvedValue({
+      id: 'challenge-id',
+      otpHash: 'otp-hash',
+      expiresAt: new Date(Date.now() + 60_000),
+      attemptCount: 0,
+      maxAttempts: 5,
+    }),
+    incrementAttempts: vi.fn().mockResolvedValue(true),
+    consumeAndVerifyEmail: vi.fn().mockResolvedValue(true),
   } as unknown as EmailVerificationChallengesRepository;
   const email = {
     send: vi
@@ -37,14 +46,75 @@ function createService(user: UserProfile | null) {
   const otp = {
     generate: vi.fn().mockReturnValue('123456'),
     hash: vi.fn().mockReturnValue('otp-hash'),
+    verify: vi.fn().mockReturnValue(true),
   } as unknown as OtpService;
 
   return {
     service: new EmailVerificationService(users, challenges, email, otp),
     challenges,
     email,
+    otp,
   };
 }
+
+describe('EmailVerificationService.verify', () => {
+  it('verifies an email after consuming a matching challenge', async () => {
+    const { service, challenges, otp } = createService(pendingUser);
+
+    await expect(
+      service.verify({ email: ' USER@example.com ', otp: '123456' }),
+    ).resolves.toEqual({ verified: true });
+
+    expect(challenges.findActive).toHaveBeenCalledWith(
+      'user-id',
+      'REGISTRATION',
+    );
+    expect(otp.verify).toHaveBeenCalledWith('123456', 'otp-hash');
+    expect(challenges.consumeAndVerifyEmail).toHaveBeenCalledWith(
+      'challenge-id',
+      'user-id',
+    );
+  });
+
+  it('rejects a missing challenge without checking the code', async () => {
+    const { service, challenges, otp } = createService(pendingUser);
+    vi.mocked(challenges.findActive).mockResolvedValue(null);
+
+    await expect(
+      service.verify({ email: 'user@example.com', otp: '123456' }),
+    ).rejects.toThrow('That code is invalid or expired');
+
+    expect(otp.verify).not.toHaveBeenCalled();
+    expect(challenges.consumeAndVerifyEmail).not.toHaveBeenCalled();
+  });
+
+  it('records a wrong code and does not consume the challenge', async () => {
+    const { service, challenges, otp } = createService(pendingUser);
+    vi.mocked(otp.verify).mockReturnValue(false);
+
+    await expect(
+      service.verify({ email: 'user@example.com', otp: '000000' }),
+    ).rejects.toThrow('That code is invalid or expired');
+
+    expect(challenges.incrementAttempts).toHaveBeenCalledWith('challenge-id');
+    expect(challenges.consumeAndVerifyEmail).not.toHaveBeenCalled();
+  });
+
+  it('rejects a matching code if the challenge expires before consumption', async () => {
+    const { service, challenges, otp } = createService(pendingUser);
+    vi.mocked(challenges.consumeAndVerifyEmail).mockResolvedValue(false);
+
+    await expect(
+      service.verify({ email: 'user@example.com', otp: '123456' }),
+    ).rejects.toThrow('That code is invalid or expired');
+
+    expect(otp.verify).toHaveBeenCalledWith('123456', 'otp-hash');
+    expect(challenges.consumeAndVerifyEmail).toHaveBeenCalledWith(
+      'challenge-id',
+      'user-id',
+    );
+  });
+});
 
 describe('EmailVerificationService.resend', () => {
   it('sends a newly issued code to an unverified email', async () => {

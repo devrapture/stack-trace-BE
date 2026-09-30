@@ -48,39 +48,35 @@ export class EmailVerificationService {
   ) {}
 
   async verify(dto: VerifyEmailOtpDto): Promise<VerifyEmailResponseDto> {
+    const invalidCode = () =>
+      new AppError(
+        ErrorCode.BAD_REQUEST,
+        'That code is invalid or expired. Request a new one',
+        HttpStatus.BAD_REQUEST,
+      );
     const { normalizedEmail } = normalizeEmail(dto.email);
     const user =
       await this.userRepository.getUserByNormalizedEmail(normalizedEmail);
-    if (!user)
-      throw new AppError(
-        ErrorCode.BAD_REQUEST,
-        'That code is invalid or expired.Request a new one',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (!user) throw invalidCode();
 
     const challenge = await this.challengeRepository.findActive(
       user.id,
       'REGISTRATION',
     );
 
-    if (!challenge)
-      throw new AppError(
-        ErrorCode.BAD_REQUEST,
-        'That code is invalid or expired.Request a new one',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (!challenge) throw invalidCode();
 
     const isOtpValid = this.otpService.verify(dto.otp, challenge.otpHash);
     if (!isOtpValid) {
-      this.challengeRepository.incrementAttempts(challenge.id);
-      throw new AppError(
-        ErrorCode.BAD_REQUEST,
-        'That code is invalid or expired.Request a new one',
-        HttpStatus.BAD_REQUEST,
-      );
+      await this.challengeRepository.incrementAttempts(challenge.id);
+      throw invalidCode();
     }
 
-    await this.challengeRepository.consumeAndVerifyEmail(challenge.id, user.id);
+    const consumed = await this.challengeRepository.consumeAndVerifyEmail(
+      challenge.id,
+      user.id,
+    );
+    if (!consumed) throw invalidCode();
     return { verified: true };
   }
 
