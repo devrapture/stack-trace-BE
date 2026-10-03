@@ -6,6 +6,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { AccessTokenService } from './access-token.service.js';
 import { AUTH_SESSIONS_REPOSITORY } from './auth-sessions.repository.js';
 import { PrismaAuthSessionsRepository } from './prisma-auth-sessions.repository.js';
+import { SessionService } from './session.service.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PrismaAuthSessionsRepository } from './prisma-auth-sessions.repository.
   ],
   providers: [
     AccessTokenService,
+    SessionService,
     PrismaModule,
     {
       provide: AUTH_SESSIONS_REPOSITORY,

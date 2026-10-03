@@ -64,13 +64,26 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
 
   async rotate(
     sessionId: string,
-    input: { newHash: string; previousHash: string; expiresAt: Date },
-  ): Promise<void> {
-    await this.db.AuthSession.where({ id: sessionId }).update({
+    input: {
+      currentHash: string;
+      newHash: string;
+      previousHash: string;
+      expiresAt: Date;
+    },
+  ): Promise<boolean> {
+    const updated = await this.db.AuthSession.where({
+      id: sessionId,
+      refreshTokenHash: input.currentHash,
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    }).update({
       refreshTokenHash: input.newHash,
       previousTokenHash: input.previousHash,
       expiresAt: input.expiresAt,
+      lastUsedAt: new Date(),
     });
+
+    return updated !== null;
   }
 
   async findActiveForUser(userId: string): Promise<SessionRecord[]> {

@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { AccessTokenService } from './access-token.service';
+import { AccessTokenService } from './access-token.service.js';
 import {
   SessionClientTypeName,
   SessionRevokedReasonName,
 } from './auth-sessions.repository';
-import { PrismaAuthSessionsRepository } from './prisma-auth-sessions.repository';
-import { generateRefreshToken, hashRefreshToken } from './refresh-token';
+import { PrismaAuthSessionsRepository } from './prisma-auth-sessions.repository.js';
+import { generateRefreshToken, hashRefreshToken } from './refresh-token.js';
 import {
   InvalidRefreshTokenError,
   RefreshTokenReuseDetectedError,
-} from './session-errors';
+} from './session-errors.js';
 
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_ACTIVE_SESSIONS_PER_USER = 10;
@@ -80,11 +80,14 @@ export class SessionService {
     const newRefreshTokenHash = hashRefreshToken(newRefreshToken);
     const newExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
 
-    await this.prismaAuthSession.rotate(session.id, {
+    const isRotated = await this.prismaAuthSession.rotate(session.id, {
+      currentHash: hash,
       newHash: newRefreshTokenHash,
       previousHash: hash,
       expiresAt: newExpiresAt,
     });
+
+    if (!isRotated) throw new InvalidRefreshTokenError();
 
     const accessToken = await this.accessTokenService.sign({
       sid: session.id,

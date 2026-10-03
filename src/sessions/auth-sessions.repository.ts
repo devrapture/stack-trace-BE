@@ -34,8 +34,13 @@ export interface AuthSessionsRepository {
   findByCurrentOrPreviousHash(hash: string): Promise<SessionRecord | null>;
   rotate(
     sessionId: string,
-    input: { newHash: string; previousHash: string; expiresAt: Date },
-  ): Promise<void>;
+    input: {
+      currentHash: string;
+      newHash: string;
+      previousHash: string;
+      expiresAt: Date;
+    },
+  ): Promise<boolean>;
   revoke(sessionId: string, reason: SessionRevokedReasonName): Promise<void>;
   revokeAllForUser(
     userId: string,
