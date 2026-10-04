@@ -1,4 +1,7 @@
+import { HttpStatus } from '@nestjs/common';
 import { or } from '@prisma/orm-postgres/orm-client';
+import { AppError } from '../common/error/app-error';
+import { ErrorCode } from '../common/error/error-codes';
 import { FieldOutputTypes } from '../prisma/contract';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -16,16 +19,83 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
     this.db = prisma.db.orm.public;
   }
 
-  async create(input: CreateSessionInput): Promise<SessionRecord> {
-    const session = await this.db.AuthSession.create({
-      userId: input.userId,
-      refreshTokenHash: input.refreshTokenHash,
-      clientType: input.clientType,
-      deviceName: input.deviceName,
-      expiresAt: input.expiresAt,
-    });
+  async createEnforcingLimit(
+    input: CreateSessionInput,
+    maxActiveSessions: number,
+  ): Promise<SessionRecord> {
+    if (maxActiveSessions < 1)
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        'Invalid max active sessions',
+        HttpStatus.BAD_REQUEST,
+      );
+    const db = this.prisma.db;
+    const lockUser = db.raw.sql`
+    SELECT "id" FROM "users"
+    WHERE "id" = ${input.userId}
+    `
+      .returnsRow({
+        id: 'pg/uuid@1',
+      })
+      .build();
 
-    return this.mapToSessionRecord(session);
+    return await db.transaction(async (tx) => {
+      let userFound = false;
+      for await (const _row of tx.query(lockUser)) {
+        userFound = true;
+      }
+
+      if (!userFound)
+        throw new AppError(
+          ErrorCode.NOT_FOUND,
+          'User not found',
+          HttpStatus.NOT_FOUND,
+        );
+
+      /*
+       * Any other login for this user is now waiting on the user's row lock.
+       * This query therefore sees the result of the previous login transaction.
+       */
+
+      const now = new Date();
+
+      const activeSessions = await this.db.AuthSession.where({
+        userId: input.userId,
+        revokedAt: null,
+        expiresAt: { gt: now },
+      })
+        .orderBy([
+          (s) => s.lastUsedAt.asc(),
+          (s) => s.createdAt.asc(),
+          (s) => s.id.asc(),
+        ])
+        .all();
+
+      const numberToRevoke = Math.max(
+        0,
+        activeSessions.length - maxActiveSessions,
+      );
+      const sessionsToRevoke = activeSessions.slice(0, numberToRevoke);
+      for (const session of sessionsToRevoke) {
+        tx.orm.public.AuthSession.where({
+          revokedAt: null,
+          id: session.id,
+        }).update({
+          revokedAt: now,
+          revokedReason: 'SESSION_LIMIT_EXCEEDED',
+        });
+      }
+
+      const createdSession = await this.db.AuthSession.create({
+        userId: input.userId,
+        refreshTokenHash: input.refreshTokenHash,
+        clientType: input.clientType,
+        deviceName: input.deviceName,
+        expiresAt: input.expiresAt,
+      });
+
+      return this.mapToSessionRecord(createdSession);
+    });
   }
 
   async revoke(

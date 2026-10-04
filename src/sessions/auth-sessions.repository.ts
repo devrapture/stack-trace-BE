@@ -30,7 +30,10 @@ export type SessionRecord = Readonly<{
 }>;
 
 export interface AuthSessionsRepository {
-  create(input: CreateSessionInput): Promise<SessionRecord>;
+  createEnforcingLimit(
+    input: CreateSessionInput,
+    maxActiveSessions: number,
+  ): Promise<SessionRecord>;
   findByCurrentOrPreviousHash(hash: string): Promise<SessionRecord | null>;
   rotate(
     sessionId: string,

@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AccessTokenService } from './access-token.service.js';
 import {
+  AUTH_SESSIONS_REPOSITORY,
   SessionClientTypeName,
   SessionRevokedReasonName,
 } from './auth-sessions.repository';
@@ -29,6 +30,7 @@ export interface IssuedSession {
 @Injectable()
 export class SessionService {
   constructor(
+    @Inject(AUTH_SESSIONS_REPOSITORY)
     private prismaAuthSession: PrismaAuthSessionsRepository,
     private accessTokenService: AccessTokenService,
   ) {}
@@ -41,13 +43,16 @@ export class SessionService {
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = hashRefreshToken(refreshToken);
     const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
-    const session = await this.prismaAuthSession.create({
-      userId,
-      refreshTokenHash,
-      expiresAt,
-      clientType: device.clientType,
-      ...(device.deviceName ? { deviceName: device.deviceName } : {}),
-    });
+    const session = await this.prismaAuthSession.createEnforcingLimit(
+      {
+        userId,
+        refreshTokenHash,
+        clientType: device.clientType,
+        ...(device.deviceName ? { deviceName: device.deviceName } : {}),
+        expiresAt,
+      },
+      MAX_ACTIVE_SESSIONS_PER_USER,
+    );
     const accessToken = await this.accessTokenService.sign({
       sid: session.id,
       sub: userId,
