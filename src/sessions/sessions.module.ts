@@ -35,5 +35,6 @@ import { SessionService } from './session.service.js';
       useClass: PrismaAuthSessionsRepository,
     },
   ],
+  exports: [SessionService],
 })
 export class SessionsModule {}

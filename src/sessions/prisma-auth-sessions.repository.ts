@@ -1,4 +1,4 @@
-import { HttpStatus } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { or } from '@prisma/orm-postgres/orm-client';
 import { AppError } from '../common/error/app-error';
 import { ErrorCode } from '../common/error/error-codes';
@@ -13,6 +13,7 @@ import {
 
 type AuthSessionFields = FieldOutputTypes['public']['AuthSession'];
 
+@Injectable()
 export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
   private readonly db: PrismaService['db']['orm']['public'];
   constructor(private readonly prisma: PrismaService) {
@@ -33,6 +34,7 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
     const lockUser = db.raw.sql`
     SELECT "id" FROM "users"
     WHERE "id" = ${input.userId}
+    FOR UPDATE;
     `
       .returnsRow({
         id: 'pg/uuid@1',
@@ -59,7 +61,7 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
 
       const now = new Date();
 
-      const activeSessions = await this.db.AuthSession.where({
+      const activeSessions = await tx.orm.public.AuthSession.where({
         userId: input.userId,
         revokedAt: null,
         expiresAt: { gt: now },
@@ -86,7 +88,7 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
         });
       }
 
-      const createdSession = await this.db.AuthSession.create({
+      const createdSession = await tx.orm.public.AuthSession.create({
         userId: input.userId,
         refreshTokenHash: input.refreshTokenHash,
         clientType: input.clientType,
