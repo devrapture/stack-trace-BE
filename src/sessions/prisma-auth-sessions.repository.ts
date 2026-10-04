@@ -79,7 +79,7 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
       );
       const sessionsToRevoke = activeSessions.slice(0, numberToRevoke);
       for (const session of sessionsToRevoke) {
-        tx.orm.public.AuthSession.where({
+        await tx.orm.public.AuthSession.where({
           revokedAt: null,
           id: session.id,
         }).update({
