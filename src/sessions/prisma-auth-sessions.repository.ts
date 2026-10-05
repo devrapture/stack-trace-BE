@@ -100,6 +100,10 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
         expiresAt: toInstant(input.expiresAt),
       });
 
+      await tx.orm.public.User.where({ id: input.userId }).update({
+        lastLoginAt: now,
+      });
+
       return this.mapToSessionRecord(createdSession);
     });
   }
