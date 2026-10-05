@@ -3,16 +3,14 @@ import { or } from '@prisma/orm-postgres/orm-client';
 import { Temporal } from 'temporal-polyfill/full';
 import { AppError } from '../common/error/app-error.js';
 import { ErrorCode } from '../common/error/error-codes.js';
-import { FieldOutputTypes } from '../prisma/contract.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  AuthSessionFields,
   AuthSessionsRepository,
   CreateSessionInput,
   SessionRecord,
   SessionRevokedReasonName,
 } from './auth-sessions.repository.js';
-
-type AuthSessionFields = FieldOutputTypes['public']['AuthSession'];
 
 const toInstant = (date: Date): Temporal.Instant =>
   Temporal.Instant.fromEpochMilliseconds(date.getTime());
@@ -134,12 +132,29 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
 
   async findByCurrentOrPreviousHash(
     hash: string,
-  ): Promise<SessionRecord | null> {
+  ): Promise<AuthSessionFields | null> {
     const row = await this.db.AuthSession.where((s) =>
       or(s.refreshTokenHash.eq(hash), s.previousTokenHash.eq(hash)),
     ).first();
 
-    return row ? this.mapToSessionRecord(row) : null;
+    return row
+      ? {
+          id: row.id,
+          userId: row.userId,
+          refreshTokenHash: row.refreshTokenHash,
+          previousTokenHash: row.previousTokenHash,
+          clientType: row.clientType,
+          deviceName: row.deviceName,
+          createdAt: row.createdAt,
+          updatedAt: new Date(row.updatedAt.epochMilliseconds),
+          lastUsedAt: new Date(row.lastUsedAt.epochMilliseconds),
+          expiresAt: new Date(row.expiresAt.epochMilliseconds),
+          revokedAt: row.revokedAt
+            ? new Date(row.revokedAt.epochMilliseconds)
+            : null,
+          revokedReason: row.revokedReason,
+        }
+      : null;
   }
 
   async rotate(
@@ -185,19 +200,17 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
   }
 
   private mapToSessionRecord(row: AuthSessionFields): SessionRecord {
-    return {
+    return Object.freeze({
       id: row.id,
       userId: row.userId,
       deviceName: row.deviceName,
       clientType: row.clientType,
-      refreshTokenHash: row.refreshTokenHash,
-      previousTokenHash: row.previousTokenHash,
       revokedAt: row.revokedAt
         ? new Date(row.revokedAt.epochMilliseconds)
         : null,
       expiresAt: new Date(row.expiresAt.epochMilliseconds),
       lastUsedAt: new Date(row.lastUsedAt.epochMilliseconds),
       createdAt: new Date(row.createdAt.epochMilliseconds),
-    };
+    });
   }
 }

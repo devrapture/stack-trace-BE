@@ -1,5 +1,8 @@
+import { FieldOutputTypes } from '../prisma/contract';
+
 export const AUTH_SESSIONS_REPOSITORY = Symbol('AUTH_SESSIONS_REPOSITORY');
 export type SessionClientTypeName = 'WEB' | 'IOS' | 'ANDROID' | 'OTHER';
+export type AuthSessionFields = FieldOutputTypes['public']['AuthSession'];
 export type SessionRevokedReasonName =
   | 'LOGOUT'
   | 'LOGOUT_ALL'
@@ -19,8 +22,6 @@ export interface CreateSessionInput {
 export type SessionRecord = Readonly<{
   id: string;
   userId: string;
-  refreshTokenHash: string;
-  previousTokenHash: string | null;
   clientType: SessionClientTypeName;
   deviceName: string | null;
   createdAt: Date;
@@ -34,7 +35,7 @@ export interface AuthSessionsRepository {
     input: CreateSessionInput,
     maxActiveSessions: number,
   ): Promise<SessionRecord>;
-  findByCurrentOrPreviousHash(hash: string): Promise<SessionRecord | null>;
+  findByCurrentOrPreviousHash(hash: string): Promise<AuthSessionFields | null>;
   rotate(
     sessionId: string,
     input: {
