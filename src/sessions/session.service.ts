@@ -1,11 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
+import {
+  USERS_REPOSITORY,
+  type UsersRepository,
+} from '../users/users.repository.js';
 import { AccessTokenService } from './access-token.service.js';
 import {
   AUTH_SESSIONS_REPOSITORY,
   SessionClientTypeName,
   SessionRevokedReasonName,
+  type AuthSessionsRepository,
 } from './auth-sessions.repository.js';
-import { PrismaAuthSessionsRepository } from './prisma-auth-sessions.repository.js';
 import { generateRefreshToken, hashRefreshToken } from './refresh-token.js';
 import {
   InvalidRefreshTokenError,
@@ -32,8 +36,10 @@ export interface IssuedSession {
 export class SessionService {
   constructor(
     @Inject(AUTH_SESSIONS_REPOSITORY)
-    private prismaAuthSession: PrismaAuthSessionsRepository,
+    private prismaAuthSession: AuthSessionsRepository,
     private accessTokenService: AccessTokenService,
+    @Inject(USERS_REPOSITORY)
+    private userRepository: UsersRepository,
   ) {}
 
   async createSession(
@@ -77,6 +83,12 @@ export class SessionService {
       session.expiresAt.getTime() < Date.now()
     )
       throw new InvalidRefreshTokenError();
+
+    const user = await this.userRepository.getUserById(session.userId);
+    if (!user || user.status !== 'ACTIVE') {
+      await this.prismaAuthSession.revoke(session.id, 'ADMIN');
+      throw new InvalidRefreshTokenError();
+    }
 
     if (session.previousTokenHash === hash) {
       await this.prismaAuthSession.revoke(session.id, 'REUSE_DETECTED');

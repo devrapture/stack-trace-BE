@@ -1,6 +1,8 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { vi } from 'vitest';
 import type { AppConfig } from '../config/app-config.js';
+import type { UserProfile } from '../users/user.model.js';
+import type { UsersRepository } from '../users/users.repository.js';
 import type {
   AuthSessionsRepository,
   SessionRecord,
@@ -24,13 +26,35 @@ const activeSession: SessionRecord = {
   revokedAt: null,
 };
 
-function createStrategy(session: SessionRecord | null) {
+const activeUser: UserProfile = {
+  id: 'user-id',
+  publicId: 'public-id',
+  role: 'USER',
+  status: 'ACTIVE',
+  avatarUrl: null,
+  primaryEmail: {
+    display: 'user@example.com',
+    normalized: 'user@example.com',
+    verified: true,
+  },
+  lastLoginAt: null,
+  createdAt: new Date('2026-10-05T12:00:00Z'),
+  updatedAt: new Date('2026-10-05T12:00:00Z'),
+};
+
+function createStrategy(
+  session: SessionRecord | null,
+  user: UserProfile | null = activeUser,
+) {
   const findById = vi.fn().mockResolvedValue(session);
   const repository = { findById } as unknown as AuthSessionsRepository;
+  const getUserById = vi.fn().mockResolvedValue(user);
+  const users = { getUserById } as unknown as UsersRepository;
 
   return {
     findById,
-    strategy: new JwtStrategy(config, repository),
+    getUserById,
+    strategy: new JwtStrategy(config, repository, users),
   };
 }
 
@@ -52,6 +76,20 @@ describe('JwtStrategy', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(findById).not.toHaveBeenCalled();
   });
+
+  it.each(['SUSPENDED', 'DELETED'] as const)(
+    'rejects an access token for a %s user',
+    async (status) => {
+      const { strategy } = createStrategy(activeSession, {
+        ...activeUser,
+        status,
+      });
+
+      await expect(
+        strategy.validate({ sub: 'user-id', sid: 'session-id' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    },
+  );
 
   it.each([
     ['missing', null],

@@ -66,6 +66,13 @@ export class LoginService {
         HttpStatus.FORBIDDEN,
       );
 
+    if (user.status !== 'ACTIVE')
+      throw new AppError(
+        ErrorCode.UNAUTHORIZED,
+        'Invalid email or password',
+        HttpStatus.UNAUTHORIZED,
+      );
+
     if (this.passwordHasher.needsRehash(passwordHash)) {
       const upgradedHash = await this.passwordHasher.hash(dto.password);
       await this.passwordCredentialsRepository.updateHashForUser(
