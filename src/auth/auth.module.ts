@@ -11,9 +11,11 @@ import { PASSWORD_CREDENTIALS_REPOSITORY } from './password/password-credentials
 import { PasswordHasher } from './password/password.hasher.js';
 import { PrismaPasswordCredentialsRepository } from './password/prisma-password-credentials.repository.js';
 import { RegistrationService } from './registration/registration.service.js';
+import { LoginService } from './login.service.js';
+import { SessionsModule } from '../sessions/sessions.module.js';
 
 @Module({
-  imports: [PlatformConfigModule, UsersModule, EmailModule],
+  imports: [PlatformConfigModule, UsersModule, EmailModule, SessionsModule],
   providers: [
     PasswordHasher,
     {
@@ -27,6 +29,7 @@ import { RegistrationService } from './registration/registration.service.js';
     OtpService,
     RegistrationService,
     EmailVerificationService,
+    LoginService,
   ],
   exports: [
     PasswordHasher,

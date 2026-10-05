@@ -4,7 +4,7 @@ import {
   AUTH_SESSIONS_REPOSITORY,
   SessionClientTypeName,
   SessionRevokedReasonName,
-} from './auth-sessions.repository';
+} from './auth-sessions.repository.js';
 import { PrismaAuthSessionsRepository } from './prisma-auth-sessions.repository.js';
 import { generateRefreshToken, hashRefreshToken } from './refresh-token.js';
 import {
@@ -25,6 +25,7 @@ export interface IssuedSession {
   refreshToken: string;
   sessionId: string;
   refreshTokenExpiresAt: Date;
+  clientType: SessionClientTypeName;
 }
 
 @Injectable()
@@ -62,6 +63,7 @@ export class SessionService {
       refreshToken,
       sessionId: session.id,
       refreshTokenExpiresAt: expiresAt,
+      clientType: device.clientType,
     };
   }
 
@@ -104,6 +106,7 @@ export class SessionService {
       refreshToken: newRefreshToken,
       sessionId: session.id,
       refreshTokenExpiresAt: newExpiresAt,
+      clientType: session.clientType,
     };
   }
 

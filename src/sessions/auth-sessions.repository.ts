@@ -51,4 +51,5 @@ export interface AuthSessionsRepository {
     exceptSessionId?: string,
   ): Promise<void>;
   findActiveForUser(userId: string): Promise<SessionRecord[]>;
+  findById(sessionId: string): Promise<SessionRecord | null>;
 }
