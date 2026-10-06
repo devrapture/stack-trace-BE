@@ -1,3 +1,4 @@
+import fastifyCookie from '@fastify/cookie';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import {
@@ -28,6 +29,9 @@ async function bootstrap() {
   app.enableShutdownHooks();
   const logger = app.get(Logger);
   const config = app.get<AppConfig>(APP_CONFIG);
+
+  await app.register(fastifyCookie);
+
   app.useLogger(logger);
   app.useGlobalPipes(
     new ValidationPipe({

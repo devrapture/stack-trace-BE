@@ -1,5 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
-import { ErrorCode } from './error-codes';
+import { ErrorCode } from './error-codes.js';
 
 export class AppError extends Error {
   public constructor(

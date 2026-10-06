@@ -14,6 +14,7 @@ export const ErrorCode = {
   TOO_MANY_REQUESTS: 'too_many_requests',
   INVALID_REFRESH_TOKEN: 'invalid_refresh_token',
   REFRESH_TOKEN_REUSE_DETECTED: 'refresh_token_reuse_detected',
+  EMAIL_NOT_VERIFIED: 'email_not_verified',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

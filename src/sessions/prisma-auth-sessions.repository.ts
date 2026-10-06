@@ -1,17 +1,19 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { or } from '@prisma/orm-postgres/orm-client';
-import { AppError } from '../common/error/app-error';
-import { ErrorCode } from '../common/error/error-codes';
-import { FieldOutputTypes } from '../prisma/contract';
-import { PrismaService } from '../prisma/prisma.service';
+import { Temporal } from 'temporal-polyfill/full';
+import { AppError } from '../common/error/app-error.js';
+import { ErrorCode } from '../common/error/error-codes.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  AuthSessionFields,
   AuthSessionsRepository,
   CreateSessionInput,
   SessionRecord,
   SessionRevokedReasonName,
-} from './auth-sessions.repository';
+} from './auth-sessions.repository.js';
 
-type AuthSessionFields = FieldOutputTypes['public']['AuthSession'];
+const toInstant = (date: Date): Temporal.Instant =>
+  Temporal.Instant.fromEpochMilliseconds(date.getTime());
 
 @Injectable()
 export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
@@ -59,13 +61,13 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
        * This query therefore sees the result of the previous login transaction.
        */
 
-      const now = new Date();
+      const now = Temporal.Now.instant();
 
       const activeSessions = await tx.orm.public.AuthSession.where({
         userId: input.userId,
         revokedAt: null,
-        expiresAt: { gt: now },
       })
+        .where((session) => session.expiresAt.gt(now))
         .orderBy([
           (s) => s.lastUsedAt.asc(),
           (s) => s.createdAt.asc(),
@@ -93,7 +95,11 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
         refreshTokenHash: input.refreshTokenHash,
         clientType: input.clientType,
         deviceName: input.deviceName,
-        expiresAt: input.expiresAt,
+        expiresAt: toInstant(input.expiresAt),
+      });
+
+      await tx.orm.public.User.where({ id: input.userId }).update({
+        lastLoginAt: now,
       });
 
       return this.mapToSessionRecord(createdSession);
@@ -106,7 +112,7 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
   ): Promise<void> {
     await this.db.AuthSession.where({ id: sessionId }).update({
       revokedReason: reason,
-      revokedAt: new Date(),
+      revokedAt: Temporal.Now.instant(),
     });
   }
 
@@ -120,18 +126,35 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
       session = session.where((s) => s.id.neq(exceptSessionId));
     await session.updateAll({
       revokedReason: reason,
-      revokedAt: new Date(),
+      revokedAt: Temporal.Now.instant(),
     });
   }
 
   async findByCurrentOrPreviousHash(
     hash: string,
-  ): Promise<SessionRecord | null> {
+  ): Promise<AuthSessionFields | null> {
     const row = await this.db.AuthSession.where((s) =>
       or(s.refreshTokenHash.eq(hash), s.previousTokenHash.eq(hash)),
     ).first();
 
-    return row ? this.mapToSessionRecord(row) : null;
+    return row
+      ? {
+          id: row.id,
+          userId: row.userId,
+          refreshTokenHash: row.refreshTokenHash,
+          previousTokenHash: row.previousTokenHash,
+          clientType: row.clientType,
+          deviceName: row.deviceName,
+          createdAt: new Date(row.createdAt.epochMilliseconds),
+          updatedAt: new Date(row.updatedAt.epochMilliseconds),
+          lastUsedAt: new Date(row.lastUsedAt.epochMilliseconds),
+          expiresAt: new Date(row.expiresAt.epochMilliseconds),
+          revokedAt: row.revokedAt
+            ? new Date(row.revokedAt.epochMilliseconds)
+            : null,
+          revokedReason: row.revokedReason,
+        }
+      : null;
   }
 
   async rotate(
@@ -143,17 +166,19 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
       expiresAt: Date;
     },
   ): Promise<boolean> {
+    const now = Temporal.Now.instant();
     const updated = await this.db.AuthSession.where({
       id: sessionId,
       refreshTokenHash: input.currentHash,
       revokedAt: null,
-      expiresAt: { gt: new Date() },
-    }).update({
-      refreshTokenHash: input.newHash,
-      previousTokenHash: input.previousHash,
-      expiresAt: input.expiresAt,
-      lastUsedAt: new Date(),
-    });
+    })
+      .where((session) => session.expiresAt.gt(now))
+      .update({
+        refreshTokenHash: input.newHash,
+        previousTokenHash: input.previousHash,
+        expiresAt: toInstant(input.expiresAt),
+        lastUsedAt: now,
+      });
 
     return updated !== null;
   }
@@ -162,27 +187,30 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
     const rows = await this.db.AuthSession.where({
       userId,
       revokedAt: null,
-      expiresAt: { gt: new Date() },
     })
+      .where((session) => session.expiresAt.gt(Temporal.Now.instant()))
       .orderBy((s) => s.lastUsedAt.asc())
       .all();
     return rows.map((row) => this.mapToSessionRecord(row));
   }
 
+  async findById(sessionId: string): Promise<SessionRecord | null> {
+    const row = await this.db.AuthSession.where({ id: sessionId }).first();
+    return row ? this.mapToSessionRecord(row) : null;
+  }
+
   private mapToSessionRecord(row: AuthSessionFields): SessionRecord {
-    return {
+    return Object.freeze({
       id: row.id,
       userId: row.userId,
       deviceName: row.deviceName,
       clientType: row.clientType,
-      refreshTokenHash: row.refreshTokenHash,
-      previousTokenHash: row.previousTokenHash,
       revokedAt: row.revokedAt
         ? new Date(row.revokedAt.epochMilliseconds)
         : null,
       expiresAt: new Date(row.expiresAt.epochMilliseconds),
       lastUsedAt: new Date(row.lastUsedAt.epochMilliseconds),
       createdAt: new Date(row.createdAt.epochMilliseconds),
-    };
+    });
   }
 }
