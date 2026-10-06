@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -36,7 +37,12 @@ import {
   setAuthCookies,
 } from './cookies.js';
 import { CsrfGuard } from './csrf.guard.js';
-import { generateCsrfToken } from './csrf.js';
+import {
+  CSRF_COOKIE_NAME,
+  CSRF_HEADER_NAME,
+  csrfTokenMatch,
+  generateCsrfToken,
+} from './csrf.js';
 import type { AuthResponseDto } from './dto/auth-response.dto.js';
 import { LoginDto, LoginResponseDto } from './dto/login.dto.js';
 import { RefreshDto, type RefreshResponseDto } from './dto/refresh.dto.js';
@@ -136,6 +142,15 @@ export class AuthController {
     @Req() request: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<RefreshResponseDto> {
+    if (
+      !dto.refreshToken &&
+      !csrfTokenMatch(
+        request.cookies?.[CSRF_COOKIE_NAME],
+        request.headers[CSRF_HEADER_NAME],
+      )
+    ) {
+      throw new ForbiddenException('CSRF token missing or invalid.');
+    }
     const refreshToken =
       dto.refreshToken ?? request.cookies?.[REFRESH_TOKEN_COOKIE];
     if (!refreshToken)
