@@ -3,13 +3,13 @@ import type { UserProfile } from '../users/user.model.js';
 import type { UsersRepository } from '../users/users.repository.js';
 import type { AccessTokenService } from './access-token.service.js';
 import type {
+  AuthSessionFields,
   AuthSessionsRepository,
-  SessionRecord,
 } from './auth-sessions.repository.js';
 import { InvalidRefreshTokenError } from './session-errors.js';
 import { SessionService } from './session.service.js';
 
-const session: SessionRecord = {
+const session: AuthSessionFields = {
   id: 'session-id',
   userId: 'user-id',
   refreshTokenHash: 'refresh-token-hash',
@@ -17,9 +17,11 @@ const session: SessionRecord = {
   clientType: 'WEB',
   deviceName: null,
   createdAt: new Date('2026-10-05T12:00:00Z'),
+  updatedAt: new Date('2026-10-05T12:00:00Z'),
   lastUsedAt: new Date('2026-10-05T12:00:00Z'),
   expiresAt: new Date('2100-01-01T00:00:00Z'),
   revokedAt: null,
+  revokedReason: null,
 };
 
 const activeUser: UserProfile = {
