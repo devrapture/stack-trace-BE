@@ -16,8 +16,6 @@ const config = {
 const activeSession: SessionRecord = {
   id: 'session-id',
   userId: 'user-id',
-  refreshTokenHash: 'refresh-token-hash',
-  previousTokenHash: null,
   clientType: 'OTHER',
   deviceName: null,
   createdAt: new Date('2026-10-05T12:00:00Z'),
