@@ -145,7 +145,7 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
           previousTokenHash: row.previousTokenHash,
           clientType: row.clientType,
           deviceName: row.deviceName,
-          createdAt: row.createdAt,
+          createdAt: new Date(row.createdAt.epochMilliseconds),
           updatedAt: new Date(row.updatedAt.epochMilliseconds),
           lastUsedAt: new Date(row.lastUsedAt.epochMilliseconds),
           expiresAt: new Date(row.expiresAt.epochMilliseconds),
