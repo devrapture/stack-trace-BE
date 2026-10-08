@@ -108,7 +108,7 @@ export class PasswordResetService {
   ): Promise<ResetPasswordResponseDto> {
     const { normalizedEmail, displayEmail } = normalizeEmail(dto.email);
     const user =
-      await this.userRepository.getUserByNormalizedEmail(displayEmail);
+      await this.userRepository.getUserByNormalizedEmail(normalizedEmail);
 
     if (!user)
       throw new AppError(
@@ -169,7 +169,7 @@ export class PasswordResetService {
     });
 
     await this.emailProvider.send({
-      to: normalizedEmail,
+      to: displayEmail,
       ...accountEmail({
         type: 'password_changed',
       }),
