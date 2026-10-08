@@ -3,6 +3,7 @@ import { or } from '@prisma/orm-postgres/orm-client';
 import { Temporal } from 'temporal-polyfill/full';
 import { AppError } from '../common/error/app-error.js';
 import { ErrorCode } from '../common/error/error-codes.js';
+import { TransactionClient } from '../prisma/db.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   AuthSessionFields,
@@ -120,8 +121,10 @@ export class PrismaAuthSessionsRepository implements AuthSessionsRepository {
     userId: string,
     reason: SessionRevokedReasonName,
     exceptSessionId?: string,
+    tx?: TransactionClient,
   ): Promise<void> {
-    let session = this.db.AuthSession.where({ userId });
+    const client = tx ?? this.prisma.db;
+    let session = client.orm.public.AuthSession.where({ userId });
     if (exceptSessionId)
       session = session.where((s) => s.id.neq(exceptSessionId));
     await session.updateAll({

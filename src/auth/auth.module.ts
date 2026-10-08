@@ -13,6 +13,9 @@ import { PrismaPasswordCredentialsRepository } from './password/prisma-password-
 import { RegistrationService } from './registration/registration.service.js';
 import { LoginService } from './login.service.js';
 import { SessionsModule } from '../sessions/sessions.module.js';
+import { PasswordResetService } from './password/password-reset.service.js';
+import { PASSWORD_RESET_REPOSITORY } from './password/password-reset.repository.js';
+import { PrismaPasswordRepository } from './password/prisma-password-reset.repository.js';
 
 @Module({
   imports: [PlatformConfigModule, UsersModule, EmailModule, SessionsModule],
@@ -26,15 +29,21 @@ import { SessionsModule } from '../sessions/sessions.module.js';
       provide: EMAIL_VERIFICATION_REPOSITORY,
       useClass: PrismaEmailVerificationRepository,
     },
+    {
+      provide: PASSWORD_RESET_REPOSITORY,
+      useClass: PrismaPasswordRepository,
+    },
     OtpService,
     RegistrationService,
     EmailVerificationService,
     LoginService,
+    PasswordResetService,
   ],
   exports: [
     PasswordHasher,
     PASSWORD_CREDENTIALS_REPOSITORY,
     EMAIL_VERIFICATION_REPOSITORY,
+    PASSWORD_RESET_REPOSITORY,
   ],
   controllers: [AuthController],
 })

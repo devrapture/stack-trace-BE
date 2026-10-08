@@ -2,6 +2,7 @@ import {
   accountEmail,
   existingAccountNoticeEmail,
   oauthOnlyAccountNoticeEmail,
+  unverifiedAccountPasswordResetNoticeEmail,
 } from './account-email.js';
 
 describe('accountEmail', () => {
@@ -89,6 +90,23 @@ describe('accountEmail', () => {
       }
     },
   );
+
+  it('renders an unverified-account password-reset notice without a code', () => {
+    const email = unverifiedAccountPasswordResetNoticeEmail();
+
+    expect(email.subject).toBe(
+      'Verify your email before resetting your password',
+    );
+    expect(email.html).not.toContain('class="otp"');
+    for (const body of [email.html, email.text]) {
+      expect(body).toContain(
+        'email address on the account has not been verified',
+      );
+      expect(body).toContain('request a new verification code');
+      expect(body).toContain('No changes have been made to your account');
+      expect(body).not.toMatch(/expires|copy the code/i);
+    }
+  });
 
   it('escapes names and codes in HTML while preserving plain text', () => {
     const email = accountEmail({
