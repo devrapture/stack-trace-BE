@@ -40,6 +40,7 @@ import {
   type PasswordResetChallengesRepository,
 } from './password-reset.repository.js';
 import { PasswordHasher } from './password.hasher.js';
+import { PinoLogger } from 'nestjs-pino';
 
 const GENERIC_FORGOT_RESPONSE: ForgotPasswordResponseDto = {
   message:
@@ -61,6 +62,7 @@ export class PasswordResetService {
     private readonly unitOfWork: PrismaUnitOfWork,
     @Inject(AUTH_SESSIONS_REPOSITORY)
     private readonly sessionRepository: AuthSessionsRepository,
+    private readonly logger: PinoLogger,
     private readonly otpService: OtpService,
     private readonly passwordHasher: PasswordHasher,
   ) {}
@@ -99,7 +101,19 @@ export class PasswordResetService {
       return GENERIC_FORGOT_RESPONSE;
     }
 
-    await this.issueAndSendResetOtp(user.id, displayEmail);
+    try {
+      await this.issueAndSendResetOtp(user.id, displayEmail);
+    } catch (error) {
+      if (
+        error instanceof AppError &&
+        error.code === ErrorCode.TOO_MANY_REQUESTS
+      ) {
+        return GENERIC_FORGOT_RESPONSE;
+      }
+
+      throw error;
+    }
+
     return GENERIC_FORGOT_RESPONSE;
   }
 
@@ -145,9 +159,9 @@ export class PasswordResetService {
     if (!isOtpCorrect) {
       await this.passwordResetChallenge.incrementAttempts(challenge.id);
       throw new AppError(
-        ErrorCode.TOO_MANY_REQUESTS,
-        'Too many incorrect attempts. Request a new code',
-        HttpStatus.TOO_MANY_REQUESTS,
+        ErrorCode.BAD_REQUEST,
+        'That code is invalid or has expired. Request a new one.',
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -168,12 +182,23 @@ export class PasswordResetService {
       );
     });
 
-    await this.emailProvider.send({
-      to: displayEmail,
-      ...accountEmail({
-        type: 'password_changed',
-      }),
-    });
+    try {
+      await this.emailProvider.send({
+        to: displayEmail,
+        ...accountEmail({
+          type: 'password_changed',
+        }),
+      });
+    } catch (error) {
+      this.logger.error(
+        {
+          err: error,
+          userId: user.id,
+          notification: 'password_changed',
+        },
+        'Password reset succeeded, but the notification email failed',
+      );
+    }
 
     return {
       message:

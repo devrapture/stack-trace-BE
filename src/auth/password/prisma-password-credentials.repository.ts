@@ -12,7 +12,6 @@ import {
 
 @Injectable()
 export class PrismaPasswordCredentialsRepository implements PasswordCredentialsRepository {
-  client: any;
   constructor(private readonly prisma: PrismaService) {}
   async createForUser(userId: string, passwordHash: string): Promise<void> {
     try {
