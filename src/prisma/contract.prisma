@@ -45,6 +45,7 @@ model User {
   role                        UserRole                     @default(USER)
   status                      UserStatus                   @default(PENDING)
   lastLoginAt                 Timestamptz(3)?              @map("last_login_at")
+  passwordRecoveryNoticeSentAt Timestamptz(3)?            @map("password_recovery_notice_sent_at")
   createdAt                   Timestamptz                  @map("created_at") @default(now())
   updatedAt                   temporal.updatedAt()         @map("updated_at")
 

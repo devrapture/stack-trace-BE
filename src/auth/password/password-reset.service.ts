@@ -3,6 +3,7 @@ import { AppError } from '../../common/error/app-error.js';
 import { ErrorCode } from '../../common/error/error-codes.js';
 import {
   EMAIL_PROVIDER,
+  type EmailMessage,
   type EmailProvider,
 } from '../../email/email-provider.js';
 import { accountEmail } from '../../email/templates/account-email.js';
@@ -79,12 +80,22 @@ export class PasswordResetService {
       return GENERIC_FORGOT_RESPONSE;
 
     if (!user.primaryEmail?.verified || user.status === 'PENDING') {
-      await this.emailProvider.send({
-        to: displayEmail,
-        ...accountEmail({
-          type: 'unverified_account_password_reset_notice',
-        }),
-      });
+      const canSend = await this.passwordResetChallenge.claimNoticeCooldown(
+        user.id,
+        OTP_RESEND_COOLDOWN_MS,
+      );
+      if (!canSend) return GENERIC_FORGOT_RESPONSE;
+
+      await this.sendRecoveryEmailBestEffort(
+        user.id,
+        'unverified_account_password_reset_notice',
+        {
+          to: displayEmail,
+          ...accountEmail({
+            type: 'unverified_account_password_reset_notice',
+          }),
+        },
+      );
       return GENERIC_FORGOT_RESPONSE;
     }
 
@@ -92,12 +103,22 @@ export class PasswordResetService {
       await this.passwordCredentialsRepository.findHashByUserId(user.id);
 
     if (!passwordHash) {
-      await this.emailProvider.send({
-        to: displayEmail,
-        ...accountEmail({
-          type: 'oauth_only_account_notice',
-        }),
-      });
+      const canSend = await this.passwordResetChallenge.claimNoticeCooldown(
+        user.id,
+        OTP_RESEND_COOLDOWN_MS,
+      );
+      if (!canSend) return GENERIC_FORGOT_RESPONSE;
+
+      await this.sendRecoveryEmailBestEffort(
+        user.id,
+        'oauth_only_account_notice',
+        {
+          to: displayEmail,
+          ...accountEmail({
+            type: 'oauth_only_account_notice',
+          }),
+        },
+      );
       return GENERIC_FORGOT_RESPONSE;
     }
 
@@ -233,7 +254,7 @@ export class PasswordResetService {
       cooldownMs: OTP_RESEND_COOLDOWN_MS,
     });
 
-    await this.emailProvider.send({
+    await this.sendRecoveryEmailBestEffort(userId, 'password_reset_otp', {
       to: toEmail,
       ...accountEmail({
         type: 'password_reset_otp',
@@ -241,5 +262,24 @@ export class PasswordResetService {
         expiresInMinutes: OTP_TTL_MS / 60000,
       }),
     });
+  }
+
+  private async sendRecoveryEmailBestEffort(
+    userId: string,
+    notification: string,
+    message: EmailMessage,
+  ): Promise<void> {
+    try {
+      await this.emailProvider.send(message);
+    } catch (error) {
+      this.logger.error(
+        {
+          userId,
+          notification,
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+        },
+        'Recovery email delivery failed',
+      );
+    }
   }
 }

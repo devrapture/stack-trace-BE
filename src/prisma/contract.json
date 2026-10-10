@@ -810,6 +810,16 @@
                   }
                 }
               },
+              "passwordRecoveryNoticeSentAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "publicId": {
                 "nullable": false,
                 "type": {
@@ -944,6 +954,9 @@
                 },
                 "lastLoginAt": {
                   "column": "last_login_at"
+                },
+                "passwordRecoveryNoticeSentAt": {
+                  "column": "password_recovery_notice_sent_at"
                 },
                 "publicId": {
                   "column": "publicId"
@@ -1763,6 +1776,14 @@
                     "precision": 3
                   }
                 },
+                "password_recovery_notice_sent_at": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "publicId": {
                   "codecId": "pg/uuid@1",
                   "nativeType": "uuid",
@@ -1877,7 +1898,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "07deadbed90832498bc08ba1ec82b7339a91e16c96e045718292e1970953f23b"
+    "storageHash": "ab1e5b08e1e11fbe4bd4f8c5c1f13b49cba66530f023ce6bbbfe947ec6cc94f2"
   },
   "execution": {
     "executionHash": "3ffca77778a03d11510410a0224523b705f2c533727ded80eb8f58c47c132550",

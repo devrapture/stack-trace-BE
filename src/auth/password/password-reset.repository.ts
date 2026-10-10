@@ -11,6 +11,7 @@ export interface ActivePasswordResetChallenge {
 }
 
 export interface PasswordResetChallengesRepository {
+  claimNoticeCooldown(userId: string, cooldownMs: number): Promise<boolean>;
   invalidateActiveAndCreate(input: {
     userId: string;
     otpHash: string;

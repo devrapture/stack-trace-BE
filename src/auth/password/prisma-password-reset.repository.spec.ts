@@ -4,6 +4,46 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import { PrismaPasswordRepository } from './prisma-password-reset.repository.js';
 
 describe('PrismaPasswordRepository', () => {
+  it.each([
+    ['claims an available notice cooldown', true, true],
+    ['rejects an active notice cooldown', false, false],
+  ])('%s', async (_name, rowReturned, expected) => {
+    const cooldownQuery = {};
+    const sql = vi.fn().mockReturnValue({
+      returnsRow: vi.fn().mockReturnValue({
+        build: vi.fn().mockReturnValue(cooldownQuery),
+      }),
+    });
+    const query = vi.fn(async function* () {
+      if (rowReturned) yield { id: 'user-id' };
+    });
+    const prisma = {
+      db: {
+        raw: { sql },
+        runtime: vi.fn().mockReturnValue({ query }),
+        orm: { public: {} },
+      },
+    } as unknown as PrismaService;
+
+    const repository = new PrismaPasswordRepository(prisma);
+
+    await expect(
+      repository.claimNoticeCooldown('user-id', 60_000),
+    ).resolves.toBe(expected);
+    expect(query).toHaveBeenCalledWith(cooldownQuery);
+
+    const [parts, userId, cooldownMs] = sql.mock.calls[0] as [
+      TemplateStringsArray,
+      string,
+      number,
+    ];
+    expect(parts.join('?')).toMatch(
+      /UPDATE users[\s\S]*password_recovery_notice_sent_at[\s\S]*RETURNING id/,
+    );
+    expect(userId).toBe('user-id');
+    expect(cooldownMs).toBe(60_000);
+  });
+
   it('invalidates and creates the challenge on the transaction client', async () => {
     const lockQuery = {};
     const sql = vi.fn().mockReturnValue({

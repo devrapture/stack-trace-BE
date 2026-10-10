@@ -16,6 +16,30 @@ export class PrismaPasswordRepository implements PasswordResetChallengesReposito
     this.db = prisma.db.orm.public;
   }
 
+  async claimNoticeCooldown(
+    userId: string,
+    cooldownMs: number,
+  ): Promise<boolean> {
+    const query = this.prisma.db.raw.sql`
+      UPDATE users
+      SET password_recovery_notice_sent_at = clock_timestamp()
+      WHERE id = ${userId}
+        AND (
+          password_recovery_notice_sent_at IS NULL
+          OR password_recovery_notice_sent_at <=
+            clock_timestamp() - (${cooldownMs} * interval '1 millisecond')
+        )
+      RETURNING id
+    `
+      .returnsRow({ id: 'pg/uuid@1' })
+      .build();
+
+    for await (const _row of this.prisma.db.runtime().query(query)) {
+      return true;
+    }
+    return false;
+  }
+
   async invalidateActiveAndCreate(input: {
     userId: string;
     otpHash: string;
