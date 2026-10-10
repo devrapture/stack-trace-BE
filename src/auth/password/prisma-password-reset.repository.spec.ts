@@ -12,7 +12,9 @@ describe('PrismaPasswordRepository', () => {
       }),
     });
     const updateAll = vi.fn().mockResolvedValue(undefined);
-    const where = vi.fn().mockReturnValue({ updateAll });
+    const first = vi.fn().mockResolvedValue(null);
+    const orderBy = vi.fn().mockReturnValue({ first });
+    const where = vi.fn().mockReturnValue({ orderBy, updateAll });
     const create = vi.fn().mockResolvedValue(undefined);
     const tx = {
       query: vi.fn(async function* () {
@@ -50,6 +52,7 @@ describe('PrismaPasswordRepository', () => {
       otpHash: 'otp-hash',
       expiresAt: new Date('2026-10-08T12:00:00.000Z'),
       maxAttempts: 5,
+      cooldownMs: 60_000,
     });
 
     expect(tx.query).toHaveBeenCalledWith(lockQuery);
