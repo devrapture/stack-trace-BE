@@ -16,6 +16,7 @@ export interface PasswordResetChallengesRepository {
     otpHash: string;
     expiresAt: Date;
     maxAttempts: number;
+    cooldownMs: number;
   }): Promise<void>;
   findActive(userId: string): Promise<ActivePasswordResetChallenge | null>;
   incrementAttempts(challengeId: string): Promise<boolean>;

@@ -21,6 +21,7 @@ export class PrismaPasswordRepository implements PasswordResetChallengesReposito
     otpHash: string;
     expiresAt: Date;
     maxAttempts: number;
+    cooldownMs: number;
   }): Promise<void> {
     const db = this.prisma.db;
 
@@ -42,6 +43,25 @@ export class PrismaPasswordRepository implements PasswordResetChallengesReposito
         );
 
       const now = Temporal.Now.instant();
+      const mostRecentChallenge =
+        await tx.orm.public.PasswordResetChallenge.where({
+          userId: input.userId,
+        })
+          .orderBy((challenge) => challenge.createdAt.desc())
+          .first();
+
+      if (
+        mostRecentChallenge &&
+        now.epochMilliseconds -
+          mostRecentChallenge.createdAt.epochMilliseconds <
+          input.cooldownMs
+      ) {
+        throw new AppError(
+          ErrorCode.TOO_MANY_REQUESTS,
+          'Please wait before requesting another code.',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
       await tx.orm.public.PasswordResetChallenge.where({
         userId: input.userId,
         consumedAt: null,

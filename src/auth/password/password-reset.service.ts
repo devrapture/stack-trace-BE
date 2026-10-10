@@ -230,6 +230,7 @@ export class PasswordResetService {
       otpHash,
       expiresAt: new Date(Date.now() + OTP_TTL_MS),
       maxAttempts: OTP_MAX_ATTEMPTS,
+      cooldownMs: OTP_RESEND_COOLDOWN_MS,
     });
 
     await this.emailProvider.send({
