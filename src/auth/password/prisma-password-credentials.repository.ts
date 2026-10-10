@@ -62,6 +62,31 @@ export class PrismaPasswordCredentialsRepository implements PasswordCredentialsR
     });
   }
 
+  async updateHashForUserIfCurrent(
+    userId: string,
+    expectedPasswordHash: string,
+    newPasswordHash: string,
+    tx: TransactionClient,
+  ): Promise<boolean> {
+    const identity = await tx.orm.public.AuthIdentity.where({
+      userId,
+      provider: 'PASSWORD',
+    }).first();
+
+    if (!identity) {
+      return false;
+    }
+
+    const updated = await tx.orm.public.PasswordCredential.where({
+      authIdentityId: identity.id,
+      passwordHash: expectedPasswordHash,
+    }).update({
+      passwordHash: newPasswordHash,
+    });
+
+    return updated !== null;
+  }
+
   async findHashByUserId(userId: string): Promise<string | null> {
     const identity = await this.prisma.db.orm.public.AuthIdentity.where({
       userId,
