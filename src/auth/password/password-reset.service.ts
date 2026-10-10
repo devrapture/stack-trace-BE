@@ -163,9 +163,9 @@ export class PasswordResetService {
 
     if (challenge.attemptCount >= challenge.maxAttempts)
       throw new AppError(
-        ErrorCode.TOO_MANY_REQUESTS,
-        'Too many incorrect attempts. Request a new code',
-        HttpStatus.TOO_MANY_REQUESTS,
+        ErrorCode.BAD_REQUEST,
+        'That code is invalid or has expired. Request a new one',
+        HttpStatus.BAD_REQUEST,
       );
 
     if (challenge.expiresAt.getTime() < Date.now())
