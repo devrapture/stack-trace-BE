@@ -1,0 +1,44 @@
+[
+  {
+    "id": "column.public.users.password_recovery_notice_sent_at",
+    "label": "Add column \"password_recovery_notice_sent_at\" to \"users\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "password_recovery_notice_sent_at",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"password_recovery_notice_sent_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "password_recovery_notice_sent_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"password_recovery_notice_sent_at\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ADD COLUMN \"password_recovery_notice_sent_at\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"password_recovery_notice_sent_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "password_recovery_notice_sent_at"
+        ]
+      }
+    ]
+  }
+]

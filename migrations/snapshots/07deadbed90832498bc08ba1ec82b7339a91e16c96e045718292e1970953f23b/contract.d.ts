@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'ab1e5b08e1e11fbe4bd4f8c5c1f13b49cba66530f023ce6bbbfe947ec6cc94f2'>;
+  StorageHashBase<'07deadbed90832498bc08ba1ec82b7339a91e16c96e045718292e1970953f23b'>;
 export type ExecutionHash =
   ExecutionHashBase<'3ffca77778a03d11510410a0224523b705f2c533727ded80eb8f58c47c132550'>;
 export type ProfileHash =
@@ -315,8 +315,6 @@ export type FieldOutputTypes = {
       readonly displayName: CodecTypes['pg/text@1']['output'] | null;
       readonly id: CodecTypes['pg/uuid@1']['output'];
       readonly lastLoginAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
-      readonly passwordRecoveryNoticeSentAt:
-        CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
       readonly publicId: CodecTypes['pg/uuid@1']['output'];
       readonly role: 'USER' | 'ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED';
@@ -401,8 +399,6 @@ export type FieldInputTypes = {
       readonly displayName: CodecTypes['pg/text@1']['input'] | null;
       readonly id: CodecTypes['pg/uuid@1']['input'];
       readonly lastLoginAt: CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
-      readonly passwordRecoveryNoticeSentAt:
-        CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
       readonly publicId: CodecTypes['pg/uuid@1']['input'];
       readonly role: 'USER' | 'ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED';
@@ -497,8 +493,6 @@ export type StorageColumnTypes = {
       readonly display_name: CodecTypes['pg/text@1']['output'] | null;
       readonly id: CodecTypes['pg/uuid@1']['output'];
       readonly last_login_at: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
-      readonly password_recovery_notice_sent_at:
-        CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
       readonly publicId: CodecTypes['pg/uuid@1']['output'];
       readonly role: 'USER' | 'ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED';
@@ -583,8 +577,6 @@ export type StorageColumnInputTypes = {
       readonly display_name: CodecTypes['pg/text@1']['input'] | null;
       readonly id: CodecTypes['pg/uuid@1']['input'];
       readonly last_login_at: CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
-      readonly password_recovery_notice_sent_at:
-        CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
       readonly publicId: CodecTypes['pg/uuid@1']['input'];
       readonly role: 'USER' | 'ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED';
@@ -670,7 +662,6 @@ export namespace Models {
     displayName: CodecTypes['pg/text@1']['output'] | null;
     id: CodecTypes['pg/uuid@1']['output'];
     lastLoginAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
-    passwordRecoveryNoticeSentAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
     publicId: CodecTypes['pg/uuid@1']['output'];
     role: 'USER' | 'ADMIN';
     status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED';
@@ -1211,12 +1202,6 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                 };
-                readonly password_recovery_notice_sent_at: {
-                  readonly nativeType: 'timestamptz';
-                  readonly codecId: 'pg/timestamptz-temporal@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                };
                 readonly publicId: {
                   readonly nativeType: 'uuid';
                   readonly codecId: 'pg/uuid@1';
@@ -1742,14 +1727,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
-              readonly passwordRecoveryNoticeSentAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-temporal@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
               readonly publicId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
@@ -1836,9 +1813,6 @@ type ContractBase = Omit<
                 readonly displayName: { readonly column: 'display_name' };
                 readonly id: { readonly column: 'id' };
                 readonly lastLoginAt: { readonly column: 'last_login_at' };
-                readonly passwordRecoveryNoticeSentAt: {
-                  readonly column: 'password_recovery_notice_sent_at';
-                };
                 readonly publicId: { readonly column: 'publicId' };
                 readonly role: { readonly column: 'role' };
                 readonly status: { readonly column: 'status' };

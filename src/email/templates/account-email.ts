@@ -15,7 +15,8 @@ export type AccountEmailOptions = AccountEmailBaseOptions &
         type:
           | 'password_changed'
           | 'existing_account_notice'
-          | 'oauth_only_account_notice';
+          | 'oauth_only_account_notice'
+          | 'unverified_account_password_reset_notice';
         otp?: never;
         expiresInMinutes?: never;
       }
@@ -130,6 +131,24 @@ const CONTENT = {
     closing: 'See you in the grid,',
     footer:
       'You received this notice because someone tried to register a password account using the email address linked to your Stack Trace account.',
+  },
+  unverified_account_password_reset_notice: {
+    subject: 'Verify your email before resetting your password',
+    preheader:
+      'Your Stack Trace email must be verified before you can reset your password.',
+    eyebrow: 'ACCOUNT RECOVERY',
+    headline: 'Your email still needs verification.',
+    paragraphs: [
+      'We received a request to reset the password for your Stack Trace account, but the email address on the account has not been verified yet.',
+    ],
+    actionHeading: 'Verify your email first.',
+    instructions:
+      'Return to Stack Trace and request a new verification code. After verifying your email, you can request a password reset again.',
+    securityNote:
+      'If you didn’t request a password reset, you can safely ignore this email. No changes have been made to your account.',
+    closing: 'See you in the grid,',
+    footer:
+      'You received this notice because a password reset was requested for an unverified Stack Trace account using this email address.',
   },
 } satisfies Record<AccountEmailOptions['type'], AccountEmailContent>;
 
@@ -276,3 +295,6 @@ export const existingAccountNoticeEmail = () =>
 
 export const oauthOnlyAccountNoticeEmail = () =>
   accountEmail({ type: 'oauth_only_account_notice' });
+
+export const unverifiedAccountPasswordResetNoticeEmail = () =>
+  accountEmail({ type: 'unverified_account_password_reset_notice' });

@@ -44,8 +44,16 @@ import {
   generateCsrfToken,
 } from './csrf.js';
 import type { AuthResponseDto } from './dto/auth-response.dto.js';
+import {
+  ForgotPasswordDto,
+  ForgotPasswordResponseDto,
+} from './dto/forgot-password.dto.js';
 import { LoginDto, LoginResponseDto } from './dto/login.dto.js';
 import { RefreshDto, type RefreshResponseDto } from './dto/refresh.dto.js';
+import {
+  ResetPasswordDto,
+  ResetPasswordResponseDto,
+} from './dto/reset-password.dto.js';
 import { EmailVerificationService } from './email-verification/email-verification.service.js';
 import {
   ResendVerificationDto,
@@ -53,6 +61,7 @@ import {
 } from './email-verification/resend-verification.dto.js';
 import { VerifyEmailOtpDto } from './email-verification/verify-email.dto.js';
 import { LoginService } from './login.service.js';
+import { PasswordResetService } from './password/password-reset.service.js';
 import { RegisterDto } from './registration/register.dto.js';
 import { RegistrationService } from './registration/registration.service.js';
 
@@ -69,6 +78,7 @@ export class AuthController {
     private readonly verificationService: EmailVerificationService,
     private readonly loginService: LoginService,
     private readonly sessionService: SessionService,
+    private readonly passwordResetService: PasswordResetService,
   ) {}
   @Public()
   @Post('register')
@@ -163,6 +173,31 @@ export class AuthController {
     const session = await this.sessionService.rotateRefreshToken(refreshToken);
 
     return this.respond(session, reply);
+  }
+
+  @Public()
+  @Post('forgot')
+  @HttpCode(202)
+  @Throttle({
+    default: {
+      limit: 5,
+      ttl: 60_000,
+    },
+  })
+  async forgot(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<ForgotPasswordResponseDto> {
+    return this.passwordResetService.forgotPassword(dto);
+  }
+
+  @Public()
+  @Post('reset')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async reset(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<ResetPasswordResponseDto> {
+    return this.passwordResetService.resetPassword(dto);
   }
 
   @Get('me')

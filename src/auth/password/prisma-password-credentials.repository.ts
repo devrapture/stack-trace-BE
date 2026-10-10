@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { TransactionClient } from '../../prisma/db.js';
 import {
   isPostgresError,
   POSTGRES_UNIQUE_VIOLATION,
@@ -36,9 +37,14 @@ export class PrismaPasswordCredentialsRepository implements PasswordCredentialsR
     }
   }
 
-  async updateHashForUser(userId: string, passwordHash: string): Promise<void> {
+  async updateHashForUser(
+    userId: string,
+    passwordHash: string,
+    tx: TransactionClient,
+  ): Promise<void> {
     // Overwrite the password hash when resuming an unverified registration so the latest submitted password is used.
-    const identity = await this.prisma.db.orm.public.AuthIdentity.where({
+    const client = tx ?? this.prisma.db;
+    const identity = await client.orm.public.AuthIdentity.where({
       userId,
       provider: 'PASSWORD',
     })
@@ -49,7 +55,7 @@ export class PrismaPasswordCredentialsRepository implements PasswordCredentialsR
       throw new Error('No password identity found for user.');
     }
 
-    await this.prisma.db.orm.public.PasswordCredential.where({
+    await client.orm.public.PasswordCredential.where({
       authIdentityId: identity.id,
     }).update({
       passwordHash,

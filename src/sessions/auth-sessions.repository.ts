@@ -1,4 +1,5 @@
 import { FieldOutputTypes } from '../prisma/contract';
+import { TransactionClient } from '../prisma/db';
 
 export const AUTH_SESSIONS_REPOSITORY = Symbol('AUTH_SESSIONS_REPOSITORY');
 export type SessionClientTypeName = 'WEB' | 'IOS' | 'ANDROID' | 'OTHER';
@@ -50,6 +51,7 @@ export interface AuthSessionsRepository {
     userId: string,
     reason: SessionRevokedReasonName,
     exceptSessionId?: string,
+    db?: TransactionClient,
   ): Promise<void>;
   findActiveForUser(userId: string): Promise<SessionRecord[]>;
   findById(sessionId: string): Promise<SessionRecord | null>;
