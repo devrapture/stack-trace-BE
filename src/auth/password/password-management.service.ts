@@ -100,12 +100,19 @@ export class PasswordManagementService {
     const user = await this.userRepository.getUserById(userId);
 
     if (user && user.primaryEmail)
-      await this.emailProvider.send({
-        to: user.primaryEmail.display,
-        ...accountEmail({
-          type: 'password_changed',
-        }),
-      });
+      try {
+        await this.emailProvider.send({
+          to: user.primaryEmail.display,
+          ...accountEmail({
+            type: 'password_changed',
+          }),
+        });
+      } catch (error) {
+        this.logger.error(
+          { error, userId },
+          'Failed to send password change email',
+        );
+      }
 
     this.logger.warn(
       `Audit: password changed for user ${userId}; other sessions revoked.`,

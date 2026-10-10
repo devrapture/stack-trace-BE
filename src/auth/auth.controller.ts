@@ -208,6 +208,7 @@ export class AuthController {
 
   @Post('change-password')
   @HttpCode(200)
+  @UseGuards(CsrfGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async changePassword(
     @Body() dto: ChangePasswordDto,
