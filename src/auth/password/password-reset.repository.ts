@@ -19,8 +19,7 @@ export interface PasswordResetChallengesRepository {
     maxAttempts: number;
     cooldownMs: number;
   }): Promise<void>;
-  findActive(userId: string): Promise<ActivePasswordResetChallenge | null>;
-  incrementAttempts(challengeId: string): Promise<boolean>;
+  claimAttempt(userId: string): Promise<ActivePasswordResetChallenge | null>;
   mostRecentIssuedAt(userId: string): Promise<Date | null>;
-  markConsumed(challengeId: string, tx?: TransactionClient): Promise<void>;
+  consumeIfActive(challengeId: string, tx: TransactionClient): Promise<boolean>;
 }

@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { Temporal } from 'temporal-polyfill/full';
+import type { TransactionClient } from '../../prisma/db.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { PrismaPasswordRepository } from './prisma-password-reset.repository.js';
 
@@ -113,31 +114,112 @@ describe('PrismaPasswordRepository', () => {
     expect(outerCreate).not.toHaveBeenCalled();
   });
 
-  it('maps the database expiry instant to a Date', async () => {
+  it('atomically claims and maps one verification attempt', async () => {
+    const attemptQuery = {};
     const expiresAt = Temporal.Instant.from('2026-10-08T12:00:00Z');
-    const first = vi.fn().mockResolvedValue({
-      id: 'challenge-id',
-      otpHash: 'otp-hash',
-      expiresAt,
-      attemptCount: 0,
-      maxAttempts: 5,
+    const sql = vi.fn().mockReturnValue({
+      returnsRow: vi.fn().mockReturnValue({
+        build: vi.fn().mockReturnValue(attemptQuery),
+      }),
     });
-    const orderBy = vi.fn().mockReturnValue({ first });
-    const where = vi.fn().mockReturnValue({ orderBy });
+    const query = vi.fn(async function* () {
+      yield {
+        id: 'challenge-id',
+        otpHash: 'otp-hash',
+        expiresAt,
+        attemptCount: 1,
+        maxAttempts: 5,
+      };
+    });
     const prisma = {
       db: {
-        orm: {
-          public: {
-            PasswordResetChallenge: { where },
-          },
-        },
+        raw: { sql },
+        runtime: vi.fn().mockReturnValue({ query }),
+        orm: { public: {} },
       },
     } as unknown as PrismaService;
 
     const repository = new PrismaPasswordRepository(prisma);
-    const challenge = await repository.findActive('user-id');
+    const challenge = await repository.claimAttempt('user-id');
 
+    expect(query).toHaveBeenCalledWith(attemptQuery);
+    expect(challenge?.attemptCount).toBe(1);
     expect(challenge?.expiresAt).toBeInstanceOf(Date);
     expect(challenge?.expiresAt.toISOString()).toBe('2026-10-08T12:00:00.000Z');
+
+    const [parts, userId] = sql.mock.calls[0] as [TemplateStringsArray, string];
+    const statement = parts.join('?');
+    expect(userId).toBe('user-id');
+    expect(statement).toMatch(
+      /SET attempt_count = challenge\.attempt_count \+ 1/,
+    );
+    expect(statement).toMatch(/challenge\.consumed_at IS NULL/);
+    expect(statement).toMatch(/challenge\.expires_at > clock_timestamp\(\)/);
+    expect(statement).toMatch(
+      /challenge\.attempt_count < challenge\.max_attempts/,
+    );
+    expect(statement).toMatch(/RETURNING challenge\.id/);
+  });
+
+  it('returns null when no verification attempt can be claimed', async () => {
+    const attemptQuery = {};
+    const sql = vi.fn().mockReturnValue({
+      returnsRow: vi.fn().mockReturnValue({
+        build: vi.fn().mockReturnValue(attemptQuery),
+      }),
+    });
+    const query = vi.fn(async function* () {});
+    const prisma = {
+      db: {
+        raw: { sql },
+        runtime: vi.fn().mockReturnValue({ query }),
+        orm: { public: {} },
+      },
+    } as unknown as PrismaService;
+
+    const repository = new PrismaPasswordRepository(prisma);
+
+    await expect(repository.claimAttempt('user-id')).resolves.toBeNull();
+  });
+
+  it.each([
+    ['consumes an active challenge', true, true],
+    ['rejects an inactive challenge', false, false],
+  ])('%s', async (_name, rowReturned, expected) => {
+    const consumeQuery = {};
+    const sql = vi.fn().mockReturnValue({
+      returnsRow: vi.fn().mockReturnValue({
+        build: vi.fn().mockReturnValue(consumeQuery),
+      }),
+    });
+    const query = vi.fn(async function* () {
+      if (rowReturned) yield { id: 'challenge-id' };
+    });
+    const tx = { query } as unknown as TransactionClient;
+    const prisma = {
+      db: {
+        raw: { sql },
+        orm: { public: {} },
+      },
+    } as unknown as PrismaService;
+
+    const repository = new PrismaPasswordRepository(prisma);
+
+    await expect(repository.consumeIfActive('challenge-id', tx)).resolves.toBe(
+      expected,
+    );
+    expect(query).toHaveBeenCalledWith(consumeQuery);
+
+    const [parts, challengeId] = sql.mock.calls[0] as [
+      TemplateStringsArray,
+      string,
+    ];
+    const statement = parts.join('?');
+    expect(challengeId).toBe('challenge-id');
+    expect(statement).toMatch(/consumed_at IS NULL/);
+    expect(statement).toMatch(/expires_at > clock_timestamp\(\)/);
+    expect(statement).toMatch(/attempt_count > 0/);
+    expect(statement).toMatch(/attempt_count <= max_attempts/);
+    expect(statement).toMatch(/RETURNING id/);
   });
 });

@@ -105,20 +105,49 @@ export class PrismaPasswordRepository implements PasswordResetChallengesReposito
     });
   }
 
-  async incrementAttempts(challengeId: string): Promise<boolean> {
+  async claimAttempt(
+    userId: string,
+  ): Promise<ActivePasswordResetChallenge | null> {
     const query = this.prisma.db.raw.sql`
-    UPDATE password_reset_challenge
-    SET attempt_count = attempt_count + 1, updated_at = now()
-WHERE id = ${challengeId}
-AND consumed_at IS NULL 
-AND expires_at > now()
-AND attempt_count < max_attempts
+      UPDATE password_reset_challenge AS challenge
+      SET attempt_count = challenge.attempt_count + 1,
+          updated_at = clock_timestamp()
+      WHERE challenge.id = (
+        SELECT candidate.id
+        FROM password_reset_challenge AS candidate
+        WHERE candidate.user_id = ${userId}
+          AND candidate.consumed_at IS NULL
+        ORDER BY candidate.created_at DESC
+        LIMIT 1
+      )
+        AND challenge.consumed_at IS NULL
+        AND challenge.expires_at > clock_timestamp()
+        AND challenge.attempt_count < challenge.max_attempts
+      RETURNING challenge.id,
+                challenge.otp_hash AS "otpHash",
+                challenge.expires_at AS "expiresAt",
+                challenge.attempt_count AS "attemptCount",
+                challenge.max_attempts AS "maxAttempts"
     `
-      .affectedCount()
+      .returnsRow({
+        id: 'pg/uuid@1',
+        otpHash: 'pg/text@1',
+        expiresAt: 'pg/timestamptz-temporal@1',
+        attemptCount: 'pg/int4@1',
+        maxAttempts: 'pg/int4@1',
+      })
       .build();
 
-    const { affectedRows } = await this.prisma.db.runtime().execute(query);
-    return affectedRows > 0;
+    for await (const row of this.prisma.db.runtime().query(query)) {
+      return {
+        id: row.id,
+        otpHash: row.otpHash,
+        expiresAt: new Date(row.expiresAt.epochMilliseconds),
+        attemptCount: row.attemptCount,
+        maxAttempts: row.maxAttempts,
+      };
+    }
+    return null;
   }
 
   async mostRecentIssuedAt(userId: string): Promise<Date | null> {
@@ -131,37 +160,27 @@ AND attempt_count < max_attempts
     return row ? new Date(row.createdAt.epochMilliseconds) : null;
   }
 
-  async findActive(
-    userId: string,
-  ): Promise<ActivePasswordResetChallenge | null> {
-    const row = await this.db.PasswordResetChallenge.where({
-      userId,
-      consumedAt: null,
-    })
-      .orderBy((s) => s.createdAt.desc())
-      .first();
-
-    return row
-      ? {
-          id: row.id,
-          otpHash: row.otpHash,
-          maxAttempts: row.maxAttempts,
-          attemptCount: row.attemptCount,
-          expiresAt: new Date(row.expiresAt.epochMilliseconds),
-        }
-      : null;
-  }
-
-  async markConsumed(
+  async consumeIfActive(
     challengeId: string,
-    tx?: TransactionClient,
-  ): Promise<void> {
-    const client = tx ?? this.prisma.db;
-    await client.orm.public.PasswordResetChallenge.where({
-      id: challengeId,
-      consumedAt: null,
-    }).update({
-      consumedAt: Temporal.Now.instant(),
-    });
+    tx: TransactionClient,
+  ): Promise<boolean> {
+    const query = this.prisma.db.raw.sql`
+      UPDATE password_reset_challenge
+      SET consumed_at = clock_timestamp(),
+          updated_at = clock_timestamp()
+      WHERE id = ${challengeId}
+        AND consumed_at IS NULL
+        AND expires_at > clock_timestamp()
+        AND attempt_count > 0
+        AND attempt_count <= max_attempts
+      RETURNING id
+    `
+      .returnsRow({ id: 'pg/uuid@1' })
+      .build();
+
+    for await (const _row of tx.query(query)) {
+      return true;
+    }
+    return false;
   }
 }

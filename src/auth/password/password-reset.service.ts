@@ -141,60 +141,40 @@ export class PasswordResetService {
   async resetPassword(
     dto: ResetPasswordDto,
   ): Promise<ResetPasswordResponseDto> {
+    const invalidCode = () =>
+      new AppError(
+        ErrorCode.BAD_REQUEST,
+        'That code is invalid or has expired. Request a new one',
+        HttpStatus.BAD_REQUEST,
+      );
     const { normalizedEmail, displayEmail } = normalizeEmail(dto.email);
     const user =
       await this.userRepository.getUserByNormalizedEmail(normalizedEmail);
 
-    if (!user)
-      throw new AppError(
-        ErrorCode.BAD_REQUEST,
-        'That code is invalid or has expired. Request a new one',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (!user) throw invalidCode();
 
-    const challenge = await this.passwordResetChallenge.findActive(user.id);
+    const challenge = await this.passwordResetChallenge.claimAttempt(user.id);
 
-    if (!challenge)
-      throw new AppError(
-        ErrorCode.BAD_REQUEST,
-        'That code is invalid or has expired. Request a new one',
-        HttpStatus.BAD_REQUEST,
-      );
-
-    if (challenge.attemptCount >= challenge.maxAttempts)
-      throw new AppError(
-        ErrorCode.BAD_REQUEST,
-        'That code is invalid or has expired. Request a new one',
-        HttpStatus.BAD_REQUEST,
-      );
-
-    if (challenge.expiresAt.getTime() < Date.now())
-      throw new AppError(
-        ErrorCode.BAD_REQUEST,
-        'That code is invalid or has expired. Request a new one',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (!challenge) throw invalidCode();
 
     const isOtpCorrect = this.otpService.verify(dto.otp, challenge.otpHash);
 
-    if (!isOtpCorrect) {
-      await this.passwordResetChallenge.incrementAttempts(challenge.id);
-      throw new AppError(
-        ErrorCode.BAD_REQUEST,
-        'That code is invalid or has expired. Request a new one.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    if (!isOtpCorrect) throw invalidCode();
 
     const passwordHash = await this.passwordHasher.hash(dto.newPassword);
 
     await this.unitOfWork.run(async (tx) => {
+      const consumed = await this.passwordResetChallenge.consumeIfActive(
+        challenge.id,
+        tx,
+      );
+      if (!consumed) throw invalidCode();
+
       await this.passwordCredentialsRepository.updateHashForUser(
         user.id,
         passwordHash,
         tx,
       );
-      await this.passwordResetChallenge.markConsumed(challenge.id, tx);
       await this.sessionRepository.revokeAllForUser(
         user.id,
         'PASSWORD_CHANGE',

@@ -1,6 +1,7 @@
 import type { PinoLogger } from 'nestjs-pino';
 import { vi } from 'vitest';
 import type { EmailProvider } from '../../email/email-provider.js';
+import type { TransactionClient } from '../../prisma/db.js';
 import type { PrismaUnitOfWork } from '../../prisma/prisma-unit-of-work.js';
 import type { AuthSessionsRepository } from '../../sessions/auth-sessions.repository.js';
 import type { UserProfile } from '../../users/user.model.js';
@@ -37,6 +38,9 @@ function createService(options?: {
   user?: UserProfile | null;
   passwordHash?: string | null;
   noticeCooldownClaimed?: boolean;
+  challengeClaimed?: boolean;
+  otpCorrect?: boolean;
+  challengeConsumed?: boolean;
 }) {
   const users = {
     getUserByNormalizedEmail: vi
@@ -53,6 +57,7 @@ function createService(options?: {
           ? 'existing-password-hash'
           : options.passwordHash,
       ),
+    updateHashForUser: vi.fn().mockResolvedValue(undefined),
   } as unknown as PasswordCredentialsRepository;
   const email = {
     send: vi
@@ -65,17 +70,41 @@ function createService(options?: {
       .mockResolvedValue(options?.noticeCooldownClaimed ?? true),
     mostRecentIssuedAt: vi.fn().mockResolvedValue(null),
     invalidateActiveAndCreate: vi.fn().mockResolvedValue(undefined),
+    claimAttempt: vi.fn().mockResolvedValue(
+      options?.challengeClaimed === false
+        ? null
+        : {
+            id: 'challenge-id',
+            otpHash: 'otp-hash',
+            expiresAt: new Date(Date.now() + 60_000),
+            attemptCount: 1,
+            maxAttempts: 5,
+          },
+    ),
+    consumeIfActive: vi
+      .fn()
+      .mockResolvedValue(options?.challengeConsumed ?? true),
   } as unknown as PasswordResetChallengesRepository;
-  const unitOfWork = {} as PrismaUnitOfWork;
-  const sessions = {} as AuthSessionsRepository;
+  const transaction = {} as TransactionClient;
+  const unitOfWork = {
+    run: vi.fn(async (work: (tx: TransactionClient) => Promise<unknown>) =>
+      work(transaction),
+    ),
+  } as unknown as PrismaUnitOfWork;
+  const sessions = {
+    revokeAllForUser: vi.fn().mockResolvedValue(undefined),
+  } as unknown as AuthSessionsRepository;
   const logger = {
     error: vi.fn(),
   } as unknown as PinoLogger;
   const otp = {
     generate: vi.fn().mockReturnValue('123456'),
     hash: vi.fn().mockReturnValue('otp-hash'),
+    verify: vi.fn().mockReturnValue(options?.otpCorrect ?? true),
   } as unknown as OtpService;
-  const hasher = {} as PasswordHasher;
+  const hasher = {
+    hash: vi.fn().mockResolvedValue('new-password-hash'),
+  } as unknown as PasswordHasher;
 
   return {
     service: new PasswordResetService(
@@ -91,7 +120,13 @@ function createService(options?: {
     ),
     challenges,
     email,
+    hasher,
     logger,
+    otp,
+    passwords,
+    sessions,
+    transaction,
+    unitOfWork,
   };
 }
 
@@ -178,4 +213,87 @@ describe('PasswordResetService.forgotPassword', () => {
       expect(email.send).not.toHaveBeenCalled();
     },
   );
+});
+
+describe('PasswordResetService.resetPassword', () => {
+  const dto = {
+    email: 'user@example.com',
+    otp: '123456',
+    newPassword: 'new-secure-password',
+  };
+
+  it('rejects a request that cannot atomically claim an attempt', async () => {
+    const { service, challenges, otp, unitOfWork } = createService({
+      challengeClaimed: false,
+    });
+
+    await expect(service.resetPassword(dto)).rejects.toThrow(
+      'That code is invalid or has expired',
+    );
+
+    expect(challenges.claimAttempt).toHaveBeenCalledWith(activeUser.id);
+    expect(otp.verify).not.toHaveBeenCalled();
+    expect(unitOfWork.run).not.toHaveBeenCalled();
+  });
+
+  it('rejects an incorrect OTP after its attempt has been claimed', async () => {
+    const { service, challenges, otp, unitOfWork } = createService({
+      otpCorrect: false,
+    });
+
+    await expect(service.resetPassword(dto)).rejects.toThrow(
+      'That code is invalid or has expired',
+    );
+
+    expect(challenges.claimAttempt).toHaveBeenCalledWith(activeUser.id);
+    expect(otp.verify).toHaveBeenCalledWith('123456', 'otp-hash');
+    expect(unitOfWork.run).not.toHaveBeenCalled();
+  });
+
+  it('does not change the password when the challenge cannot be consumed', async () => {
+    const { service, challenges, passwords, sessions, transaction } =
+      createService({ challengeConsumed: false });
+
+    await expect(service.resetPassword(dto)).rejects.toThrow(
+      'That code is invalid or has expired',
+    );
+
+    expect(challenges.consumeIfActive).toHaveBeenCalledWith(
+      'challenge-id',
+      transaction,
+    );
+    expect(passwords.updateHashForUser).not.toHaveBeenCalled();
+    expect(sessions.revokeAllForUser).not.toHaveBeenCalled();
+  });
+
+  it('consumes the challenge before changing the password', async () => {
+    const { service, challenges, passwords, sessions, transaction } =
+      createService();
+
+    await expect(service.resetPassword(dto)).resolves.toEqual({
+      message:
+        'Your password has been reset. You have been signed out on every other device.',
+    });
+
+    expect(challenges.consumeIfActive).toHaveBeenCalledWith(
+      'challenge-id',
+      transaction,
+    );
+    expect(passwords.updateHashForUser).toHaveBeenCalledWith(
+      activeUser.id,
+      'new-password-hash',
+      transaction,
+    );
+    expect(
+      vi.mocked(challenges.consumeIfActive).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      vi.mocked(passwords.updateHashForUser).mock.invocationCallOrder[0],
+    );
+    expect(sessions.revokeAllForUser).toHaveBeenCalledWith(
+      activeUser.id,
+      'PASSWORD_CHANGE',
+      undefined,
+      transaction,
+    );
+  });
 });
