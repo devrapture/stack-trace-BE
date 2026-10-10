@@ -45,6 +45,10 @@ import {
 } from './csrf.js';
 import type { AuthResponseDto } from './dto/auth-response.dto.js';
 import {
+  ChangePasswordDto,
+  ChangePasswordResponseDto,
+} from './dto/change-password.dto.js';
+import {
   ForgotPasswordDto,
   ForgotPasswordResponseDto,
 } from './dto/forgot-password.dto.js';
@@ -61,6 +65,7 @@ import {
 } from './email-verification/resend-verification.dto.js';
 import { VerifyEmailOtpDto } from './email-verification/verify-email.dto.js';
 import { LoginService } from './login.service.js';
+import { PasswordManagementService } from './password/password-management.service.js';
 import { PasswordResetService } from './password/password-reset.service.js';
 import { RegisterDto } from './registration/register.dto.js';
 import { RegistrationService } from './registration/registration.service.js';
@@ -79,6 +84,7 @@ export class AuthController {
     private readonly loginService: LoginService,
     private readonly sessionService: SessionService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly passwordManagementService: PasswordManagementService,
   ) {}
   @Public()
   @Post('register')
@@ -198,6 +204,20 @@ export class AuthController {
     @Body() dto: ResetPasswordDto,
   ): Promise<ResetPasswordResponseDto> {
     return this.passwordResetService.resetPassword(dto);
+  }
+
+  @Post('change-password')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @CurrentUser() currentUser: RequestUser,
+  ): Promise<ChangePasswordResponseDto> {
+    return this.passwordManagementService.changePassword(
+      currentUser.userId,
+      currentUser.sessionId,
+      dto,
+    );
   }
 
   @Get('me')
