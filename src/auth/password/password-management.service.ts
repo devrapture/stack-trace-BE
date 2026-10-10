@@ -10,6 +10,10 @@ import { accountEmail } from '../../email/templates/account-email.js';
 import { PrismaUnitOfWork } from '../../prisma/prisma-unit-of-work.js';
 import { UNIT_OF_WORK } from '../../prisma/unit-of-work.js';
 import {
+  AUTH_SESSIONS_REPOSITORY,
+  type AuthSessionsRepository,
+} from '../../sessions/auth-sessions.repository.js';
+import {
   USERS_REPOSITORY,
   type UsersRepository,
 } from '../../users/users.repository.js';
@@ -23,10 +27,6 @@ import {
 } from './password-credentials.repository.js';
 import { validatePassword } from './password-policy.js';
 import { PasswordHasher } from './password.hasher.js';
-import {
-  AUTH_SESSIONS_REPOSITORY,
-  type AuthSessionsRepository,
-} from '../../sessions/auth-sessions.repository.js';
 
 @Injectable()
 export class PasswordManagementService {
@@ -88,11 +88,21 @@ export class PasswordManagementService {
     const newPasswordHash = await this.passwordHasher.hash(dto.newPassword);
 
     await this.unitOfWork.run(async (tx) => {
-      await this.passwordCredentialsRepository.updateHashForUser(
-        userId,
-        newPasswordHash,
-        tx,
-      );
+      const passwordUpdated =
+        await this.passwordCredentialsRepository.updateHashForUserIfCurrent(
+          userId,
+          currentPasswordHash,
+          newPasswordHash,
+          tx,
+        );
+
+      if (!passwordUpdated) {
+        throw new AppError(
+          ErrorCode.CONFLICT,
+          'Your password was changed by another request. Please sign in again.',
+          HttpStatus.CONFLICT,
+        );
+      }
 
       await this.sessionRepository.revokeAllForUser(
         userId,

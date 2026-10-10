@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import type { TransactionClient } from '../../prisma/db.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { PasswordIdentityAlreadyExistsError } from './password-credentials.repository.js';
 import { PrismaPasswordCredentialsRepository } from './prisma-password-credentials.repository.js';
@@ -36,5 +37,106 @@ describe('PrismaPasswordCredentialsRepository.createForUser', () => {
     }),
   ])('preserves other errors: %j', async (error) => {
     await expect(createWithError(error)).rejects.toBe(error);
+  });
+});
+
+describe('PrismaPasswordCredentialsRepository.updateHashForUserIfCurrent', () => {
+  function createRepository(options?: {
+    identity?: { id: string } | null;
+    updated?: object | null;
+  }) {
+    const first = vi
+      .fn()
+      .mockResolvedValue(
+        options?.identity === undefined
+          ? { id: 'identity-id' }
+          : options.identity,
+      );
+    const authIdentityWhere = vi.fn().mockReturnValue({ first });
+    const update = vi
+      .fn()
+      .mockResolvedValue(
+        options?.updated === undefined
+          ? { id: 'credential-id' }
+          : options.updated,
+      );
+    const passwordCredentialWhere = vi.fn().mockReturnValue({ update });
+    const transaction = {
+      orm: {
+        public: {
+          AuthIdentity: { where: authIdentityWhere },
+          PasswordCredential: { where: passwordCredentialWhere },
+        },
+      },
+    } as unknown as TransactionClient;
+    const repository = new PrismaPasswordCredentialsRepository(
+      {} as PrismaService,
+    );
+
+    return {
+      authIdentityWhere,
+      passwordCredentialWhere,
+      repository,
+      transaction,
+      update,
+    };
+  }
+
+  it('updates only the credential whose hash is still the verified hash', async () => {
+    const {
+      authIdentityWhere,
+      passwordCredentialWhere,
+      repository,
+      transaction,
+      update,
+    } = createRepository();
+
+    await expect(
+      repository.updateHashForUserIfCurrent(
+        'user-id',
+        'verified-hash',
+        'new-hash',
+        transaction,
+      ),
+    ).resolves.toBe(true);
+
+    expect(authIdentityWhere).toHaveBeenCalledWith({
+      userId: 'user-id',
+      provider: 'PASSWORD',
+    });
+    expect(passwordCredentialWhere).toHaveBeenCalledWith({
+      authIdentityId: 'identity-id',
+      passwordHash: 'verified-hash',
+    });
+    expect(update).toHaveBeenCalledWith({ passwordHash: 'new-hash' });
+  });
+
+  it('reports a lost race when the verified hash no longer matches', async () => {
+    const { repository, transaction } = createRepository({ updated: null });
+
+    await expect(
+      repository.updateHashForUserIfCurrent(
+        'user-id',
+        'stale-hash',
+        'new-hash',
+        transaction,
+      ),
+    ).resolves.toBe(false);
+  });
+
+  it('does not attempt an update when the password identity no longer exists', async () => {
+    const { passwordCredentialWhere, repository, transaction } =
+      createRepository({ identity: null });
+
+    await expect(
+      repository.updateHashForUserIfCurrent(
+        'user-id',
+        'verified-hash',
+        'new-hash',
+        transaction,
+      ),
+    ).resolves.toBe(false);
+
+    expect(passwordCredentialWhere).not.toHaveBeenCalled();
   });
 });
