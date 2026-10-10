@@ -1,0 +1,45 @@
+[
+  {
+    "id": "alterNullability.dropNotNull.users.display_name",
+    "label": "Drop NOT NULL on \"users\".\"display_name\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "display_name",
+        "table": "users"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"display_name\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "display_name"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"display_name\"",
+        "sql": "ALTER TABLE \"public\".\"users\" ALTER COLUMN \"display_name\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"display_name\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "users",
+          "display_name",
+          "YES"
+        ]
+      }
+    ]
+  }
+]
