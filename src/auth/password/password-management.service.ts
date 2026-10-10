@@ -1,8 +1,18 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import { AppError } from '../../common/error/app-error.js';
 import { ErrorCode } from '../../common/error/error-codes.js';
+import {
+  EMAIL_PROVIDER,
+  type EmailProvider,
+} from '../../email/email-provider.js';
+import { accountEmail } from '../../email/templates/account-email.js';
 import { PrismaUnitOfWork } from '../../prisma/prisma-unit-of-work.js';
 import { UNIT_OF_WORK } from '../../prisma/unit-of-work.js';
+import {
+  USERS_REPOSITORY,
+  type UsersRepository,
+} from '../../users/users.repository.js';
 import {
   ChangePasswordDto,
   ChangePasswordResponseDto,
@@ -13,17 +23,10 @@ import {
 } from './password-credentials.repository.js';
 import { validatePassword } from './password-policy.js';
 import { PasswordHasher } from './password.hasher.js';
-import { SessionService } from '../../sessions/session.service.js';
-import { PinoLogger } from 'nestjs-pino';
 import {
-  USERS_REPOSITORY,
-  type UsersRepository,
-} from '../../users/users.repository.js';
-import {
-  EMAIL_PROVIDER,
-  type EmailProvider,
-} from '../../email/email-provider.js';
-import { accountEmail } from '../../email/templates/account-email.js';
+  AUTH_SESSIONS_REPOSITORY,
+  type AuthSessionsRepository,
+} from '../../sessions/auth-sessions.repository.js';
 
 @Injectable()
 export class PasswordManagementService {
@@ -36,8 +39,9 @@ export class PasswordManagementService {
     private userRepository: UsersRepository,
     @Inject(EMAIL_PROVIDER)
     private readonly emailProvider: EmailProvider,
+    @Inject(AUTH_SESSIONS_REPOSITORY)
+    private readonly sessionRepository: AuthSessionsRepository,
     private readonly passwordHasher: PasswordHasher,
-    private readonly sessionService: SessionService,
     private readonly logger: PinoLogger,
   ) {}
 
@@ -90,29 +94,31 @@ export class PasswordManagementService {
         tx,
       );
 
-      await this.sessionService.revokeAllForUser(
+      await this.sessionRepository.revokeAllForUser(
         userId,
         'PASSWORD_CHANGE',
         currentSessionId,
+        tx,
       );
     });
 
-    const user = await this.userRepository.getUserById(userId);
+    try {
+      const user = await this.userRepository.getUserById(userId);
 
-    if (user && user.primaryEmail)
-      try {
+      if (user?.primaryEmail) {
         await this.emailProvider.send({
           to: user.primaryEmail.display,
           ...accountEmail({
             type: 'password_changed',
           }),
         });
-      } catch (error) {
-        this.logger.error(
-          { error, userId },
-          'Failed to send password change email',
-        );
       }
+    } catch (error) {
+      this.logger.error(
+        { error, userId },
+        'Failed to send password change notification',
+      );
+    }
 
     this.logger.warn(
       `Audit: password changed for user ${userId}; other sessions revoked.`,
